@@ -45,9 +45,11 @@ def alive():
 
 
 def find(text, xml):
-    for m in re.finditer(r'<node [^>]*?(?:text|content-desc)="([^"]*)"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', xml):
-        if text in m.group(1):
-            x1, y1, x2, y2 = map(int, m.groups()[1:])
+    for node in re.findall(r"<node [^>]*>", xml):
+        labels = re.findall(r'(?:text|content-desc)="([^"]*)"', node)
+        b = re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', node)
+        if b and any(text in l for l in labels if l):
+            x1, y1, x2, y2 = map(int, b.groups())
             return (x1 + x2) // 2, (y1 + y2) // 2
     return None
 
