@@ -1,0 +1,218 @@
+// LisanAI — English tutor for Ethiopian learners
+// Neon Postgres: DATABASE_URL = pooled connection, DIRECT_URL = direct (for migrations)
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+enum Skill {
+  GRAMMAR
+  VOCABULARY
+  READING
+  LISTENING
+  SPEAKING
+  WRITING
+}
+
+enum PracticeType {
+  MULTIPLE_CHOICE
+  FILL_BLANK
+  LISTENING
+  READING
+  WRITING
+  SPEAKING
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum AttemptKind {
+  PRACTICE
+  AI_TEST
+  WRITING
+  SPEAKING
+}
+
+model User {
+  id             String           @id @default(cuid())
+  email          String           @unique
+  passwordHash   String
+  name           String
+  phone          String?
+  role           Role             @default(STUDENT)
+  premiumUntil   DateTime?
+  levelId        String?
+  level          Level?           @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  targetBand     Float?
+  nativeLanguage String?          @default("Amharic")
+  city           String?
+  isActive       Boolean          @default(true)
+  streak         Int              @default(0)
+  lastActiveAt   DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  attempts       Attempt[]
+  progress       LessonProgress[]
+  payments       Payment[]
+  aiUsage        AiUsage[]
+}
+
+model Level {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  name        String
+  band        Float
+  cefr        String
+  description String
+  color       String     @default("#2563eb")
+  order       Int        @default(0)
+  courses     Course[]
+  practices   Practice[]
+  users       User[]
+}
+
+model Course {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  subtitle    String?
+  description String
+  skill       Skill
+  levelId     String
+  level       Level    @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  coverImage  String?
+  isPremium   Boolean  @default(false)
+  isPublished Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lessons     Lesson[]
+}
+
+model Lesson {
+  id          String           @id @default(cuid())
+  courseId    String
+  course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  summary     String?
+  content     String           @db.Text
+  videoUrl    String?
+  audioText   String?          @db.Text
+  durationMin Int              @default(10)
+  order       Int              @default(0)
+  isFree      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  practices   Practice[]
+  progress    LessonProgress[]
+}
+
+model Practice {
+  id           String       @id @default(cuid())
+  title        String
+  description  String?
+  instructions String?
+  skill        Skill
+  type         PracticeType
+  levelId      String
+  level        Level        @relation(fields: [levelId], references: [id], onDelete: Restrict)
+  lessonId     String?
+  lesson       Lesson?      @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  isPremium    Boolean      @default(false)
+  isPublished  Boolean      @default(true)
+  passage      String?      @db.Text
+  prompt       String?      @db.Text
+  questions    Json         @default("[]")
+  timeLimitMin Int?
+  minWords     Int?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  attempts     Attempt[]
+}
+
+model Attempt {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  practiceId String?
+  practice   Practice?   @relation(fields: [practiceId], references: [id], onDelete: SetNull)
+  kind       AttemptKind
+  skill      Skill
+  title      String?
+  score      Float?
+  band       Float?
+  payload    Json?
+  answers    Json?
+  feedback   Json?
+  completed  Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model LessonProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId    String
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completedAt DateTime @default(now())
+
+  @@unique([userId, lessonId])
+}
+
+model Plan {
+  id           String    @id @default(cuid())
+  name         String
+  slug         String    @unique
+  priceEtb     Int
+  durationDays Int
+  description  String?
+  features     String[]
+  isActive     Boolean   @default(true)
+  isPopular    Boolean   @default(false)
+  order        Int       @default(0)
+  payments     Payment[]
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId      String
+  plan        Plan          @relation(fields: [planId], references: [id], onDelete: Restrict)
+  txRef       String        @unique
+  amount      Int
+  currency    String        @default("ETB")
+  provider    String        @default("chapa")
+  status      PaymentStatus @default(PENDING)
+  checkoutUrl String?
+  paidAt      DateTime?
+  raw         Json?
+  createdAt   DateTime      @default(now())
+}
+
+model AiUsage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feature   String
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}

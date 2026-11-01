@@ -1,0 +1,19 @@
+{
+  "name": "ethio-english-tutor",
+  "private": true,
+  "version": "1.0.0",
+  "description": "LisanAI — English tutor & virtual teacher for Ethiopian learners (Next.js + NestJS + Neon)",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run start:dev -w @ethio-english/api",
+    "dev:web": "npm run dev -w @ethio-english/web",
+    "build": "npm run build -w @ethio-english/api && npm run build -w @ethio-english/web",
+    "db:migrate": "npm run prisma:migrate -w @ethio-english/api",
+    "db:seed": "npm run db:seed -w @ethio-english/api"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
