@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- head -->
+    <path android:fillColor="#F2B33D" android:pathData="M54,30a12,12 0,1 1,-0.01 0z" />
+    <!-- shoulders -->
+    <path android:fillColor="#FFFFFF" android:pathData="M30,80c0,-14 10,-22 24,-22s24,8 24,22z" />
+    <!-- sound waves -->
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="3" android:strokeLineCap="round"
+        android:pathData="M76,36c3,3 3,9 0,12M81,32c6,6 6,14 0,20" />
+</vector>

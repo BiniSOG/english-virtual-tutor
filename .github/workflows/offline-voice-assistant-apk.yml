@@ -1,0 +1,92 @@
+name: Offline voice assistant APK
+
+on:
+  push:
+    paths:
+      - "mobile/offline-voice-assistant/**"
+      - ".github/workflows/offline-voice-assistant-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: offline-voice-assistant-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: mobile/offline-voice-assistant
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests (dialogue engine) and Kotlin compile
+        run: ./gradlew --no-daemon :brain:test :app:compileReleaseKotlin
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Python tools for model export
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
+          pip install transformers==4.46.3 onnx==1.17.0 "numpy<2.2" sherpa-onnx==2.0.1
+
+      - name: Cache models
+        uses: actions/cache@v4
+        with:
+          path: |
+            mobile/offline-voice-assistant/.models-cache
+            mobile/offline-voice-assistant/app/src/main/assets/models/tts-am
+            mobile/offline-voice-assistant/app/src/main/assets/models/tts-en
+          key: models-v1-${{ hashFiles('mobile/offline-voice-assistant/tools/fetch_models.sh', 'mobile/offline-voice-assistant/tools/export_mms_tts.py') }}
+
+      - name: Download / export offline models
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./tools/fetch_models.sh
+
+      - name: Verify models end to end (TTS -> ASR)
+        run: python tools/verify_models.py app/src/main/assets/models build/model-check
+
+      - name: Build APK
+        run: |
+          ./gradlew --no-daemon :app:assembleRelease
+          mkdir -p build/out
+          cp app/build/outputs/apk/release/app-release.apk build/out/offline-voice-assistant.apk
+          ls -la build/out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: offline-voice-assistant-apk
+          path: mobile/offline-voice-assistant/build/out/offline-voice-assistant.apk
+          compression-level: 0
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: model-check-audio
+          path: mobile/offline-voice-assistant/build/model-check
+
+      - name: Publish pre-release with the APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: offline-assistant-build-${{ github.run_number }}
+          name: Offline voice assistant – build ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          body: |
+            Offline Amharic/English voice account-opening assistant (Android, arm64-v8a + armeabi-v7a).
+            Commit ${{ github.sha }} on ${{ github.ref_name }}.
+            Download `offline-voice-assistant.apk` on the phone, allow installing from this source, then open "AI Account Assistant".
+          files: mobile/offline-voice-assistant/build/out/offline-voice-assistant.apk

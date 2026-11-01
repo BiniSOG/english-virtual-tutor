@@ -1,0 +1,11 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+captures/
+.cxx/
+# Downloaded/exported by tools/fetch_models.sh – too large for git
+app/src/main/assets/models/
+app/src/main/jniLibs/
+.models-cache/
