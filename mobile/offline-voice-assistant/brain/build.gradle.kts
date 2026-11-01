@@ -21,3 +21,11 @@ tasks.test {
     useJUnitPlatform()
     testLogging { events("failed"); exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
 }
+
+// Amharic recording script for tools/prerecord_gemini.py
+tasks.register<JavaExec>("exportVoiceScript") {
+    group = "voice"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("com.binisog.voiceassistant.brain.VoiceScriptKt")
+    args(layout.buildDirectory.file("voice-script/am.json").get().asFile.absolutePath)
+}

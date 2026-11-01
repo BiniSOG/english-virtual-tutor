@@ -155,7 +155,7 @@ object Prompts {
         ),
         "creating" to listOf("በጣም ጥሩ፣ አካውንትዎን አሁን እየከፈትኩ ነው። ትንሽ ይጠብቁኝ።"),
         "done" to listOf(
-            "ተጠናቋል {first}! {type}ዎ ተከፍቷል። የአካውንት ቁጥርዎ {account} ነው። እንኳን ደስ አለዎት፣ ወደ {bank} እንኳን በደህና መጡ!",
+            "ተጠናቋል {first}! አዲሱ አካውንትዎ ተከፍቷል፤ ዓይነቱ {type} ነው። የአካውንት ቁጥርዎ {account} ነው። እንኳን ደስ አለዎት፣ ወደ {bank} እንኳን በደህና መጡ!",
         ),
         "notUnderstood" to listOf(
             "ይቅርታ፣ በደንብ አልሰማሁም። {question}",
@@ -195,4 +195,7 @@ object Prompts {
         fill(((if (lang == Lang.AM) am else en)[key] ?: error("missing prompt $key"))[0], *args)
 
     fun hasAllKeysInBothLanguages(): Boolean = en.keys == am.keys
+
+    /** Every variant of every line (used to pre-record the Amharic voice). */
+    fun allTemplates(lang: Lang): List<String> = (if (lang == Lang.AM) am else en).values.flatten()
 }

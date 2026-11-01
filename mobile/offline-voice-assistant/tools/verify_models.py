@@ -78,5 +78,16 @@ en, en_sr = tts("tts-en", "hello. welcome to the bank. what is your full name?")
 print("[asr am <- tts am]", omnilingual(am, am_sr))
 print("[asr am <- tts en]", omnilingual(en, en_sr))
 print("[asr en <- tts en]", zipformer(en, en_sr))
+voice_index = os.path.join(root, "..", "voice", "am", "index.json")
+if os.path.exists(voice_index):
+    idx = json.load(open(voice_index, encoding="utf-8"))
+    print(f"[gemini] {len(idx['clips'])} Amharic clips recorded with {idx['model']} / {idx['voice']}")
+    for c in idx["clips"][:8]:
+        with wave.open(os.path.join(root, "..", "voice", "am", c["id"] + ".wav")) as w:
+            pcm = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32) / 32768
+            sr = w.getframerate()
+        print(f"[gemini] {c['text']}  ->  heard: {omnilingual(pcm, sr)}")
+else:
+    print("[gemini] no pre-recorded Amharic voice in this build (GEMINI_API_KEY not set?)")
 print("[vad] silero present:", os.path.exists(os.path.join(root, "vad", "silero_vad.onnx")))
 print("OK")

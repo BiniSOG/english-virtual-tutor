@@ -63,6 +63,27 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./tools/fetch_models.sh
 
+      - name: Restore Gemini voice recordings
+        uses: actions/cache/restore@v4
+        with:
+          path: mobile/offline-voice-assistant/.voice-cache
+          key: gemini-voice-${{ github.run_id }}
+          restore-keys: gemini-voice-
+
+      - name: Pre-record the Amharic voice with Gemini (offline playback in the app)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          ./gradlew --no-daemon -q :brain:exportVoiceScript
+          python tools/prerecord_gemini.py brain/build/voice-script/am.json app/src/main/assets/voice/am .voice-cache
+
+      - name: Save Gemini voice recordings
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: mobile/offline-voice-assistant/.voice-cache
+          key: gemini-voice-${{ github.run_id }}
+
       - name: Verify models end to end (TTS -> ASR)
         run: python tools/verify_models.py app/src/main/assets/models build/model-check
 

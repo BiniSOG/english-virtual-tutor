@@ -9,3 +9,5 @@ captures/
 app/src/main/assets/models/
 app/src/main/jniLibs/
 .models-cache/
+app/src/main/assets/voice/
+.voice-cache/

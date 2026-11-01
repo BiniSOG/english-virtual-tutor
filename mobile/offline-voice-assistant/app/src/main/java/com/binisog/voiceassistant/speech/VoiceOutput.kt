@@ -11,6 +11,7 @@ import android.speech.tts.Voice
 import android.util.Log
 import com.binisog.voiceassistant.brain.AmharicText
 import com.binisog.voiceassistant.brain.Lang
+import com.binisog.voiceassistant.brain.VoiceScript
 import com.binisog.voiceassistant.brain.VoiceShaper
 import com.k2fsa.sherpa.onnx.OfflineTts
 import com.k2fsa.sherpa.onnx.OfflineTtsConfig
@@ -58,13 +59,38 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
     /** Which engine speaks each language (shown on the home screen). */
     val engineInUse = java.util.concurrent.ConcurrentHashMap<Lang, String>()
 
+    /** Amharic lines pre-recorded with Gemini at build time (assets/voice/am), id -> text. */
+    private val recordedAm: Map<String, String> by lazy {
+        runCatching {
+            val json = org.json.JSONObject(context.assets.open("voice/am/index.json").bufferedReader().use { it.readText() })
+            val arr = json.getJSONArray("clips")
+            (0 until arr.length()).associate { i -> arr.getJSONObject(i).let { it.getString("id") to it.getString("text") } }
+        }.getOrDefault(emptyMap())
+    }
+    private val clipCache = object : LinkedHashMap<String, Pcm>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pcm>?) = size > 80
+    }
+
+    val hasRecordedAmharic: Boolean get() = recordedAm.isNotEmpty()
+
     /** Load the voice for [lang] (slow: call off the main thread). */
     suspend fun prepare(lang: Lang) {
+        if (lang == Lang.AM && hasRecordedAmharic) {
+            engineInUse[lang] = "Gemini recordings (${recordedAm.size} clips)"
+            // Still load an offline voice for words that can't be pre-recorded (names).
+            if (pickSystemVoice(lang) == null && !voices.containsKey(lang) && catalog.hasTts(lang)) loadMms(lang)
+            return
+        }
         if (pickSystemVoice(lang) != null) {
             engineInUse[lang] = "phone voice " + systemVoice[lang]?.name
             return
         }
         if (voices.containsKey(lang) || !catalog.hasTts(lang)) return
+        loadMms(lang)
+        if (voices.containsKey(lang)) engineInUse[lang] = "MMS + female voice shaping"
+    }
+
+    private fun loadMms(lang: Lang) {
         val dir = ModelCatalog.ttsDir(lang)
         try {
             voices[lang] = OfflineTts(
@@ -83,7 +109,6 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
                     maxNumSentences = 1,
                 ),
             )
-            engineInUse[lang] = "MMS + female voice shaping"
         } catch (e: Throwable) {
             Log.e(TAG, "Could not load MMS voice for $lang", e)
         }
@@ -101,6 +126,10 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
     suspend fun speak(text: String, lang: Lang) {
         stopRequested = false
         try {
+            if (lang == Lang.AM && hasRecordedAmharic) {
+                speakRecorded(text)
+                return
+            }
             if (systemVoice[lang] != null) {
                 // One request for the whole reply: the phone voice handles prosody across sentences.
                 synthesizeSystem(text, lang)?.let { play(it) }
@@ -118,6 +147,69 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
         } finally {
             level = 0f
         }
+    }
+
+    // ------------------------------------------------------------------ Gemini recordings
+
+    private fun loadClip(id: String): Pcm? = synchronized(clipCache) { clipCache[id] } ?: runCatching {
+        val bytes = context.assets.open("voice/am/$id.wav").use { it.readBytes() }
+        parseWav(bytes)
+    }.getOrNull()?.also { synchronized(clipCache) { clipCache[id] = it } }
+
+    /**
+     * A reply made of recorded clips, with the leftover words (the customer's name) spoken by the
+     * offline voice at the same loudness, joined with short natural gaps.
+     */
+    private suspend fun speakRecorded(text: String) {
+        val rate = 24000
+        val parts = ArrayList<FloatArray>()
+        var clipRms = 0.0
+        var clipCount = 0
+        val plan = VoiceScript.plan(text, recordedAm)
+        val synthIdx = ArrayList<Int>()
+        for (seg in plan) {
+            if (stopRequested) return
+            when (seg) {
+                is VoiceScript.Segment.Recorded -> loadClip(seg.id)?.let { pcm ->
+                    val x = VoiceShaper.convertRate(pcm.samples, pcm.rate, rate)
+                    clipRms += rms(x); clipCount++
+                    parts += x
+                }
+                is VoiceScript.Segment.Synth -> {
+                    val pcm = if (systemVoice[Lang.AM] != null) synthesizeSystem(seg.text, Lang.AM)
+                    else voices[Lang.AM]?.let { synthesizeMms(it, seg.text, Lang.AM) }
+                    if (pcm != null) {
+                        synthIdx += parts.size
+                        parts += VoiceShaper.convertRate(pcm.samples, pcm.rate, rate)
+                    }
+                }
+            }
+        }
+        if (parts.isEmpty()) return
+        // Match the loudness of the synthesised words to the recordings.
+        if (clipCount > 0) {
+            val target = clipRms / clipCount
+            for (i in synthIdx) {
+                val r = rms(parts[i])
+                if (r > 1e-5) {
+                    val g = (target / r).toFloat().coerceIn(0.3f, 4f)
+                    for (j in parts[i].indices) parts[i][j] = (parts[i][j] * g).coerceIn(-1f, 1f)
+                }
+            }
+        }
+        val gap = FloatArray(rate * 7 / 100)
+        var total = 0
+        for (p in parts) total += p.size + gap.size
+        val out = FloatArray(total)
+        var o = 0
+        for (p in parts) { p.copyInto(out, o); o += p.size + gap.size }
+        play(Pcm(out, rate))
+    }
+
+    private fun rms(x: FloatArray): Double {
+        var s = 0.0
+        for (v in x) s += v * v
+        return kotlin.math.sqrt(s / x.size.coerceAtLeast(1))
     }
 
     // ------------------------------------------------------------------ phone (system) voice
@@ -190,7 +282,10 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
     }
 
     private fun readWav(file: File): Pcm? = runCatching {
-        val bytes = RandomAccessFile(file, "r").use { raf -> ByteArray(raf.length().toInt()).also { raf.readFully(it) } }
+        parseWav(RandomAccessFile(file, "r").use { raf -> ByteArray(raf.length().toInt()).also { raf.readFully(it) } })
+    }.getOrNull()
+
+    private fun parseWav(bytes: ByteArray): Pcm? = runCatching {
         fun le16(o: Int) = (bytes[o].toInt() and 0xff) or ((bytes[o + 1].toInt() and 0xff) shl 8)
         fun le32(o: Int) = le16(o) or (le16(o + 2) shl 16)
         var pos = 12
