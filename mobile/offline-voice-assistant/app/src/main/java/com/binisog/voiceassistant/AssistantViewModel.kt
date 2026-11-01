@@ -60,6 +60,8 @@ data class UiState(
     val sessionDir: String? = null,
     val error: String? = null,
     val lastCrash: String? = null,
+    /** Keyboard/buttons fallback; the call is voice-only unless the user turns this on. */
+    val typing: Boolean = false,
 )
 
 class AssistantViewModel(app: Application) : AndroidViewModel(app) {
@@ -84,6 +86,9 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     private val transcript = mutableListOf<Pair<String, String>>()
     private var speakJob: Job? = null
     private var loadJob: Job? = null
+    private var silenceJob: Job? = null
+    @Volatile private var lastActivity = System.currentTimeMillis()
+    private var silentReprompts = 0
 
     @Volatile private var speaking = false
     @Volatile private var muted = false
@@ -169,6 +174,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
             val ok = (mic ?: MicCapture(::onAudio).also { mic = it }).start()
             _state.update { it.copy(micOn = ok, error = if (ok) null else "Microphone unavailable") }
             apply(a.start())
+            watchSilence()
         }
     }
 
@@ -180,6 +186,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun finishSession() {
+        silenceJob?.cancel()
         voice.stop()
         speakJob?.cancel()
         mic?.stop()
@@ -219,8 +226,35 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
             val events = try { engine.accept(samples) } catch (e: Throwable) { Log.e(TAG, "asr", e); emptyList() }
             for (e in events) withContext(Dispatchers.Main) {
                 when (e) {
-                    is AsrEvent.Partial -> _state.update { it.copy(liveCaption = e.text) }
+                    is AsrEvent.Partial -> {
+                        lastActivity = System.currentTimeMillis()
+                        _state.update { it.copy(liveCaption = e.text) }
+                    }
                     is AsrEvent.Final -> onUserText(e.text, typed = false)
+                }
+            }
+        }
+    }
+
+    fun toggleTyping() = _state.update { it.copy(typing = !it.typing) }
+
+    /**
+     * Voice-first: after the assistant finishes speaking it listens. If the customer says nothing
+     * for a while, it asks the question again (twice at most, then waits quietly).
+     */
+    private fun watchSilence() {
+        silenceJob?.cancel()
+        silentReprompts = 0
+        silenceJob = viewModelScope.launch {
+            while (isActive) {
+                delay(1000)
+                val a = agent ?: break
+                val st = _state.value
+                val listening = st.micOn && !st.micMuted && !speaking && !st.typing
+                if (!listening || st.modelsLoading) { lastActivity = System.currentTimeMillis(); continue }
+                if (System.currentTimeMillis() - lastActivity > SILENCE_MS && silentReprompts < 2) {
+                    silentReprompts++
+                    a.noResponse()?.let { apply(it) }
                 }
             }
         }
@@ -237,6 +271,8 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         val a = agent ?: return
         if (speaking && !typed) return
         transcript += "user" to text
+        silentReprompts = 0
+        lastActivity = System.currentTimeMillis()
         _state.update { it.copy(lastHeard = text, liveCaption = "") }
         val before = a.lang
         val reply = a.onUtterance(text, typed) ?: return
@@ -285,6 +321,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun finishSessionKeepScreen() {
+        silenceJob?.cancel()
         viewModelScope.launch {
             speakJob?.join()
             mic?.stop(); mic = null
@@ -324,6 +361,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                 // A short tail so the end of our own voice isn't picked up by the microphone.
                 if (isActive) delay(250)
                 resetAfterSpeech = true
+                lastActivity = System.currentTimeMillis()
                 speaking = false
                 _state.update { it.copy(speaking = false) }
             }
@@ -341,5 +379,6 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
 
     companion object {
         private const val TAG = "AssistantVM"
+        private const val SILENCE_MS = 12_000L
     }
 }

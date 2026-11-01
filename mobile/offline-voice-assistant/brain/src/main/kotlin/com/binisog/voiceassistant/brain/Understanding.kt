@@ -246,4 +246,23 @@ object Understanding {
         val order = listOf(AccountType.INTEREST_FREE, AccountType.YOUTH, AccountType.CURRENT, AccountType.SAVINGS)
         return order.firstOrNull { type -> type.keys.map { AmharicText.canonical(it) }.any { k -> t.contains(" $k ") || (AmharicText.containsEthiopic(k) && t.contains(k)) } }
     }
+
+    // ------------------------------------------------------------------ review edits
+
+    private val editKeys: List<Pair<Step, List<String>>> = listOf(
+        Step.BIRTH_CITY to c(listOf("city", "town", "place of birth", "ከተማ", "የትውልድ ቦታ")),
+        Step.DOB to c(listOf("date", "birthday", "date of birth", "dob", "ቀን", "ልደት", "የትውልድ ቀን")),
+        Step.NATIONALITY to c(listOf("nationality", "citizenship", "country", "ዜግነት", "አገር")),
+        Step.ACCOUNT_TYPE to c(listOf("account type", "type", "savings", "current", "ዓይነት", "አይነት", "ሂሳብ")),
+        Step.FAN to c(listOf("fan", "fayda", "id", "id number", "national id", "ፋይዳ", "መታወቂያ", "ፋን")),
+        Step.FULL_NAME to c(listOf("name", "full name", "ስም", "ስሜ", "ስሜን")),
+    )
+
+    /** "change my name" / "ከተማውን ቀይር" -> the step to go back to. */
+    fun fieldToEdit(raw: String): Step? {
+        val t = " " + AmharicText.canonical(raw) + " "
+        return editKeys.firstOrNull { (_, keys) ->
+            keys.any { k -> t.contains(" $k ") || (AmharicText.containsEthiopic(k) && k.length >= 2 && t.contains(k)) }
+        }?.first
+    }
 }

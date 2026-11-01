@@ -171,6 +171,13 @@ class AgentTest {
         a.onUtterance("አዳማ"); a.onConfirm()
         assertEquals(Step.REVIEW, a.step)
         assertEquals("አዳማ", a.profile.birthCity)
+        a.onUtterance("ስሜን ቀይር")
+        assertEquals(Step.FULL_NAME, a.step)
+        a.onUtterance("ቤተልሄም ተስፋዬ"); a.onUtterance("አዎ")
+        assertEquals(Step.REVIEW, a.step)
+        assertEquals(Step.DOB, Understanding.fieldToEdit("change my date of birth"))
+        assertEquals(Step.BIRTH_CITY, Understanding.fieldToEdit("the city is wrong"))
+        assertTrue(a.noResponse()!!.display.startsWith("እያዳመጥኩ"))
         val sw = a.setLanguage(Lang.EN)
         assertTrue(sw.display.startsWith("Okay"))
     }

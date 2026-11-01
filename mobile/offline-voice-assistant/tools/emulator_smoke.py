@@ -100,30 +100,33 @@ def fail(msg):
     raise SystemExit(1)
 
 
-def run_call(lang_chip, create_label, start_label, name_field, name):
+def run_call(lang_chip, create_label, listening_label, start_label, name_field, name):
     adb("shell", "am", "start", "-W", "-n", f"{PKG}/.MainActivity")
     tap(lang_chip, 120)
     time.sleep(2)
     tap(create_label, 120)
-    pos = wait_for(start_label, 300)  # waits for model loading + greeting
-    time.sleep(6)  # tap while the greeting is still being spoken, like a real user
-    shot(f"greeting-{lang_chip}")
-    adb("shell", "input", "tap", str(pos[0]), str(pos[1]))
-    print(f"tapped '{start_label}'")
-    time.sleep(12)
+    # The whole multi-sentence greeting must be spoken before the app starts listening.
+    wait_for(listening_label, 420)
+    shot(f"listening-{lang_chip}")
+    # Voice is the default; the keyboard fallback is used here because the emulator has no voice.
+    tap("Type instead", 30)
+    tap(start_label, 30)
+    time.sleep(15)
     if not alive():
-        fail(f"crash after tapping '{start_label}'")
+        fail(f"crash after '{start_label}'")
     shot(f"after-start-{lang_chip}")
     tap(name_field, 60)
     adb("shell", "input", "text", name.replace(" ", "%s"))
     adb("shell", "input", "keyevent", "66")
-    time.sleep(10)
+    time.sleep(15)  # reply interrupts the previous one: confirm + next question
     if not alive():
         fail("crash after typing the name")
     shot(f"after-name-{lang_chip}")
-    time.sleep(15)  # let the microphone/ASR loop run for a while
+    tap("Type instead", 30)  # back to voice-only
+    time.sleep(30)  # silence -> the assistant asks again; ASR keeps running
     if not alive():
         fail("crash while listening")
+    shot(f"reprompt-{lang_chip}")
     adb("shell", "input", "keyevent", "4")  # back = end call
     time.sleep(3)
 
@@ -134,8 +137,8 @@ adb("install", "-r", "-g", APK, timeout=900)
 for p in ("android.permission.CAMERA", "android.permission.RECORD_AUDIO"):
     adb("shell", "pm", "grant", PKG, p, check=False)
 
-run_call("English", "Create Account", "Yes, let's start", "Full name", "Abebe Kebede Bekele")
-run_call("አማርኛ", "አካውንት ክፈት", "አዎ፣ እንጀምር", "ሙሉ ስም", "Abebe Kebede Bekele")
+run_call("English", "Create Account", "Listening", "Yes, let's start", "Full name", "Abebe Kebede Bekele")
+run_call("አማርኛ", "አካውንት ክፈት", "እያዳመጥኩ", "አዎ፣ እንጀምር", "ሙሉ ስም", "Abebe Kebede Bekele")
 
 log = save_logcat()
 found = crashes(log)

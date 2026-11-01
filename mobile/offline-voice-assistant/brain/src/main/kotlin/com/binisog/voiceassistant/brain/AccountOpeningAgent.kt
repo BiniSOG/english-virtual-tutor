@@ -170,6 +170,18 @@ class AccountOpeningAgent(
         return remember(Reply(s, s, listOf(AgentEvent.SessionEnded)))
     }
 
+    /** Nobody answered for a while: ask the current question again. */
+    fun noResponse(): Reply? {
+        if (step in setOf(Step.CREATING, Step.DONE, Step.CANCELLED)) return null
+        val q = currentQuestion()
+        return remember(
+            Reply(
+                Prompts.get("silence", lang, "question" to q.display),
+                Prompts.get("silence", lang, "question" to q.speech)
+            )
+        )
+    }
+
     /** The question for the current step, as a reply (used for "repeat" and after side questions). */
     fun currentQuestion(): Reply = when (step) {
         Step.GREETING -> sayRaw("greeting", "bank" to bank)
@@ -250,7 +262,7 @@ class AccountOpeningAgent(
             }
             Step.FAN -> return collectFan(text, typed)
             Step.OTP -> return collectOtp(text, typed)
-            Step.REVIEW -> return say("reviewHint")
+            Step.REVIEW -> return Understanding.fieldToEdit(text)?.let { editField(it) } ?: say("reviewHint")
             Step.DONE, Step.CREATING, Step.CANCELLED -> return null
         }
     }

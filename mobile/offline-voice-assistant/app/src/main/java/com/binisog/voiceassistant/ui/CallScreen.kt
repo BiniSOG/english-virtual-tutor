@@ -37,6 +37,8 @@ import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -182,9 +184,11 @@ private fun VideoCallPanel(state: UiState, vm: AssistantViewModel) {
         }
 
         Column(Modifier.fillMaxWidth().background(Color.White).imePadding().padding(horizontal = 16.dp, vertical = 10.dp)) {
-            Caption(state)
-            Spacer(Modifier.height(8.dp))
-            InputPanel(state, vm)
+            VoicePanel(state)
+            if (state.typing) {
+                Spacer(Modifier.height(8.dp))
+                InputPanel(state, vm)
+            }
             Spacer(Modifier.height(10.dp))
             Controls(state, vm)
         }
@@ -264,17 +268,6 @@ private fun InputPanel(state: UiState, vm: AssistantViewModel) {
             }
         }
         Step.OTP -> Column {
-            state.otpBanner?.let { code ->
-                Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color(0xFFFFF4D6)).padding(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Sms, null, tint = Brand.Ink)
-                    Spacer(Modifier.width(8.dp))
-                    Text(tr(lang, "Demo SMS (offline): your code is ", "የማሳያ መልእክት (ከመስመር ውጭ)፦ ኮድዎ ") + code, fontSize = 13.sp, color = Brand.Ink)
-                }
-                Spacer(Modifier.height(8.dp))
-            }
             TextAnswer(state, vm, digits = true, label = tr(lang, "6-digit code", "ባለ 6 አሃዝ ኮድ"), action = tr(lang, "Verify OTP", "አረጋግጥ"))
         }
         Step.FAN -> TextAnswer(state, vm, digits = true, label = tr(lang, "FAN (National ID number)", "የፋይዳ ቁጥር (FAN)"), action = tr(lang, "Continue", "ቀጥል"))
@@ -323,9 +316,94 @@ private fun TextAnswer(state: UiState, vm: AssistantViewModel, digits: Boolean, 
     }
 }
 
+/** Voice-first status: who is talking, what the customer said, and what is waiting for "yes". */
+@Composable
+private fun VoicePanel(state: UiState) {
+    val lang = state.lang
+    val listening = state.micOn && !state.micMuted && !state.speaking && !state.modelsLoading
+    Column(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PulsingMic(listening = listening, speaking = state.speaking)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                val (title, color) = when {
+                    state.modelsLoading -> state.modelsMessage to Brand.Muted
+                    state.speaking -> tr(lang, "Assistant is speaking…", "ረዳቱ እየተናገረ ነው…") to Brand.Ink
+                    state.micMuted -> tr(lang, "Microphone is off", "ማይክሮፎኑ ጠፍቷል") to Brand.Red
+                    !state.micOn -> tr(lang, "Microphone unavailable – tap ⌨ to type", "ማይክሮፎን አይገኝም – ለመጻፍ ⌨ ይንኩ") to Brand.Red
+                    else -> tr(lang, "Listening… please speak", "እያዳመጥኩ ነው… ይናገሩ") to Brand.Blue
+                }
+                Text(title, fontWeight = FontWeight.Bold, color = color, fontSize = 15.sp)
+                val hint = when {
+                    state.pendingValue != null -> tr(lang, "Say \"yes\" to confirm, or say it again", "ለማረጋገጥ \"አዎ\" ይበሉ፤ ወይም እንደገና ይናገሩ")
+                    state.step == Step.GREETING -> tr(lang, "Say \"yes\" to start", "ለመጀመር \"አዎ\" ይበሉ")
+                    else -> tr(lang, "Answer by voice", "በድምፅ ይመልሱ")
+                }
+                Text(hint, color = Brand.Muted, fontSize = 12.sp)
+            }
+        }
+        val heard = state.liveCaption.ifEmpty { state.lastHeard }
+        if (heard.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Brand.Sky).padding(10.dp)) {
+                Text(tr(lang, "You said", "እርስዎ ያሉት"), fontSize = 11.sp, color = Brand.Muted)
+                Text(heard, fontSize = 17.sp, color = Brand.Ink, maxLines = 3)
+            }
+        }
+        state.pendingValue?.let { value ->
+            Spacer(Modifier.height(8.dp))
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color(0xFFFFF4D6)).padding(10.dp)) {
+                Text(tr(lang, "I heard – is this correct?", "የሰማሁት – ትክክል ነው?"), fontSize = 11.sp, color = Brand.Muted)
+                Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Brand.Ink)
+            }
+        }
+        if (state.pendingValue == null && state.digitBuffer.isNotEmpty() && (state.step == Step.FAN || state.step == Step.OTP)) {
+            Spacer(Modifier.height(8.dp))
+            Text(tr(lang, "Digits so far: ", "እስካሁን የተቀበልኩት፦ ") + AccountOpeningAgent.formatGroups(state.digitBuffer), fontSize = 15.sp, color = Brand.Ink)
+        }
+        if (state.step == Step.OTP) state.otpBanner?.let { code ->
+            Spacer(Modifier.height(8.dp))
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color(0xFFFFF4D6)).padding(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Sms, null, tint = Brand.Ink)
+                Spacer(Modifier.width(8.dp))
+                Text(tr(lang, "Demo SMS (offline): your code is ", "የማሳያ መልእክት (ከመስመር ውጭ)፦ ኮድዎ ") + code, fontSize = 13.sp, color = Brand.Ink)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PulsingMic(listening: Boolean, speaking: Boolean) {
+    val t = rememberInfiniteTransition(label = "mic")
+    val pulse by t.animateFloat(0.85f, 1.25f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "pulse")
+    val color = when {
+        speaking -> Brand.Gold
+        listening -> Brand.Blue
+        else -> Brand.Muted
+    }
+    Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
+        if (listening || speaking) {
+            Box(
+                Modifier.size((44 * pulse).dp).clip(CircleShape).background(color.copy(alpha = 0.25f))
+            )
+        }
+        Box(Modifier.size(40.dp).clip(CircleShape).background(color), contentAlignment = Alignment.Center) {
+            Icon(if (speaking) Icons.Default.GraphicEq else Icons.Default.Mic, null, tint = Color.White)
+        }
+    }
+}
+
 @Composable
 private fun Controls(state: UiState, vm: AssistantViewModel) {
     Row(Modifier.fillMaxWidth().navigationBarsPadding(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+        FilledIconButton(
+            onClick = { vm.toggleTyping() },
+            colors = IconButtonDefaults.filledIconButtonColors(containerColor = if (state.typing) Brand.Blue else Brand.Sky),
+            modifier = Modifier.size(52.dp)
+        ) { Icon(Icons.Default.Keyboard, "Type instead", tint = if (state.typing) Color.White else Brand.Blue) }
         FilledIconButton(
             onClick = { vm.toggleMute() },
             colors = IconButtonDefaults.filledIconButtonColors(containerColor = if (state.micMuted) Brand.Muted else Brand.Sky),
@@ -382,6 +460,8 @@ private fun ReviewPanel(state: UiState, vm: AssistantViewModel) {
             Button(onClick = { vm.confirm() }, modifier = Modifier.weight(2f)) { Text(tr(lang, "Confirm & Create Account", "አረጋግጥና ክፈት")) }
         }
         Spacer(Modifier.height(16.dp))
+        VoicePanel(state)
+        Spacer(Modifier.height(12.dp))
         Controls(state, vm)
     }
 }

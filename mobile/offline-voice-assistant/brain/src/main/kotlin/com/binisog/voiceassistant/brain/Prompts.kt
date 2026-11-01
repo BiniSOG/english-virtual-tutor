@@ -3,7 +3,7 @@ package com.binisog.voiceassistant.brain
 /** Every sentence the assistant can say, in both languages. `{x}` placeholders are filled by the agent. */
 object Prompts {
     private val en = mapOf(
-        "greeting" to "Hello! Welcome to {bank}. I'm your virtual assistant, and I'll help you open a {bank} account today. This call is recorded for identity verification. Shall we get started?",
+        "greeting" to "Hello! Welcome to {bank}. I'm your virtual assistant, and I'll help you open a {bank} account today. This call is recorded for identity verification. Shall we get started? Please say yes.",
         "notReady" to "No problem. Say yes when you are ready, or tap the red button to end the call.",
         "askName" to "Great! First, please tell me your full name.",
         "askDob" to "Thank you. Next, what is your date of birth?",
@@ -20,7 +20,7 @@ object Prompts {
         "otpSent" to "We've sent a one-time password to your registered mobile number. Please say or enter the six-digit code.",
         "otpWrong" to "That code doesn't match. Please try again.",
         "otpOk" to "Your identity is verified.",
-        "review" to "Please review your information and confirm to create your account.",
+        "review" to "Please review your information on the screen. Say yes to create your account, or tell me what to change.",
         "creating" to "Creating your account. This takes a moment.",
         "done" to "Congratulations! Your {type} has been created successfully. Your account number is {account}.",
         "notUnderstood" to "Sorry, I didn't catch that. {question}",
@@ -28,12 +28,13 @@ object Prompts {
         "cancelled" to "Okay, I've stopped the session. Goodbye!",
         "afterFaq" to "Now, back to your application. {question}",
         "editing" to "Sure, let's change that. {question}",
-        "reviewHint" to "Tap a detail to change it, or say yes to create your account.",
+        "silence" to "I'm listening. {question}",
+        "reviewHint" to "Say yes to create your account, or tell me which detail to change, for example: change my name.",
         "digitsSoFar" to "I have {digits} so far. Please continue.",
     )
 
     private val am = mapOf(
-        "greeting" to "ሰላም! ወደ {bank} እንኳን በደህና መጡ። እኔ የእርስዎ ምናባዊ ረዳት ነኝ፤ ዛሬ የ{bank} አካውንት እንዲከፍቱ እረዳዎታለሁ። ይህ ጥሪ ማንነትዎን ለማረጋገጥ ይቀረጻል። እንጀምር?",
+        "greeting" to "ሰላም! ወደ {bank} እንኳን በደህና መጡ። እኔ የእርስዎ ምናባዊ ረዳት ነኝ፤ ዛሬ የ{bank} አካውንት እንዲከፍቱ እረዳዎታለሁ። ይህ ጥሪ ማንነትዎን ለማረጋገጥ ይቀረጻል። እንጀምር? እባክዎ አዎ ይበሉ።",
         "notReady" to "ችግር የለም። ሲዘጋጁ አዎ ይበሉ፤ ወይም ጥሪውን ለማቋረጥ ቀዩን ቁልፍ ይጫኑ።",
         "askName" to "በጣም ጥሩ! በመጀመሪያ እባክዎ ሙሉ ስምዎን ይንገሩኝ።",
         "askDob" to "አመሰግናለሁ። በመቀጠል የትውልድ ቀንዎ መቼ ነው?",
@@ -50,7 +51,7 @@ object Prompts {
         "otpSent" to "ወደ ተመዘገበው ስልክ ቁጥርዎ የአንድ ጊዜ የይለፍ ኮድ ተልኳል። እባክዎ ባለ ስድስት አሃዙን ኮድ ይናገሩ ወይም ያስገቡ።",
         "otpWrong" to "ኮዱ አይዛመድም። እባክዎ እንደገና ይሞክሩ።",
         "otpOk" to "ማንነትዎ ተረጋግጧል።",
-        "review" to "እባክዎ መረጃዎን ይመልከቱና አካውንቱን ለመክፈት ያረጋግጡ።",
+        "review" to "እባክዎ በስክሪኑ ላይ ያለውን መረጃዎን ይመልከቱ። አካውንቱን ለመክፈት አዎ ይበሉ፤ ወይም መቀየር ያለበትን ይንገሩኝ።",
         "creating" to "አካውንትዎ እየተከፈተ ነው። ትንሽ ይጠብቁ።",
         "done" to "እንኳን ደስ አለዎት! {type}ዎ በተሳካ ሁኔታ ተከፍቷል። የአካውንት ቁጥርዎ {account} ነው።",
         "notUnderstood" to "ይቅርታ፣ በደንብ አልሰማሁም። {question}",
@@ -58,7 +59,8 @@ object Prompts {
         "cancelled" to "እሺ፣ ክፍለ ጊዜው ተቋርጧል። ደህና ይሁኑ!",
         "afterFaq" to "አሁን ወደ ማመልከቻዎ እንመለስ። {question}",
         "editing" to "እሺ፣ እናስተካክለው። {question}",
-        "reviewHint" to "ለመቀየር መረጃውን ይንኩ፤ ወይም አካውንቱን ለመክፈት አዎ ይበሉ።",
+        "silence" to "እያዳመጥኩ ነው። {question}",
+        "reviewHint" to "አካውንቱን ለመክፈት አዎ ይበሉ፤ ወይም የሚቀየረውን መረጃ ይንገሩኝ፤ ለምሳሌ፦ ስሜን ቀይር።",
         "digitsSoFar" to "እስካሁን {digits} ተቀብያለሁ። እባክዎ ይቀጥሉ።",
     )
 

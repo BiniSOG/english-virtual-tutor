@@ -121,9 +121,12 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
         track.play()
         var written = 0L
         try {
-            // Sentences are synthesised one by one and played while the next is generated.
-            voice.generateWithCallback(text = text, sid = 0, speed = 1.0f) { samples ->
-                if (stopRequested) return@generateWithCallback 0
+            // Synthesise sentence by sentence and play each one while the next is generated.
+            // (generateWithCallback is not used: its JNI bridge looks up a lambda signature that
+            // Kotlin 2 does not emit, which leaves a pending exception and aborts the app.)
+            for (sentence in splitSentences(text)) {
+                if (stopRequested) break
+                val samples = voice.generate(text = sentence, sid = 0, speed = 1.0f).samples
                 var off = 0
                 val chunk = rate / 20
                 while (off < samples.size && !stopRequested) {
@@ -134,8 +137,7 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
                     track.write(samples, off, n, AudioTrack.WRITE_BLOCKING)
                     off += n
                 }
-                written += samples.size
-                if (stopRequested) 0 else 1
+                written += off
             }
             // Wait for the tail of the buffer to play out.
             while (!stopRequested && track.playbackHeadPosition < written) Thread.sleep(20)
@@ -146,6 +148,12 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
             track.release()
         }
     }
+
+    private fun splitSentences(text: String): List<String> =
+        Regex("[^.!?።፧]+[.!?።፧]*").findAll(text)
+            .map { it.value.trim() }
+            .filter { s -> s.any { it.isLetterOrDigit() } }
+            .toList()
 
     private suspend fun ensureSystemTts(): TextToSpeech? {
         systemTts?.let { if (systemTtsReady) return it }
