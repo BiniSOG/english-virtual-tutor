@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Crown, Receipt } from 'lucide-react';
 import { RequireAuth } from '@/components/require-auth';
 import { Badge, Button, Card, EmptyState, Field, Input, PageHeader, Select } from '@/components/ui';
-import { api } from '@/lib/api';
+import { api, setToken } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useFetch } from '@/lib/hooks';
 import type { Level } from '@/lib/types';
@@ -56,9 +56,10 @@ function Profile() {
     e.preventDefault();
     setSavingPw(true);
     try {
-      await api('/auth/me/password', { body: pw });
+      const res = await api<{ token?: string }>('/auth/me/password', { body: pw });
+      if (res.token) setToken(res.token); // other devices are signed out; keep this one signed in
       setPw({ currentPassword: '', newPassword: '' });
-      toast.success('Password changed');
+      toast.success('Password changed — other devices have been signed out');
     } catch (err) {
       toast.error((err as Error).message);
     } finally {

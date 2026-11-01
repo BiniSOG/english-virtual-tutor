@@ -49,27 +49,30 @@ enum AttemptKind {
 }
 
 model User {
-  id             String           @id @default(cuid())
-  email          String           @unique
-  passwordHash   String
-  name           String
-  phone          String?
-  role           Role             @default(STUDENT)
-  premiumUntil   DateTime?
-  levelId        String?
-  level          Level?           @relation(fields: [levelId], references: [id], onDelete: SetNull)
-  targetBand     Float?
-  nativeLanguage String?          @default("Amharic")
-  city           String?
-  isActive       Boolean          @default(true)
-  streak         Int              @default(0)
-  lastActiveAt   DateTime?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  attempts       Attempt[]
-  progress       LessonProgress[]
-  payments       Payment[]
-  aiUsage        AiUsage[]
+  id                String               @id @default(cuid())
+  email             String               @unique
+  passwordHash      String
+  name              String
+  phone             String?
+  role              Role                 @default(STUDENT)
+  premiumUntil      DateTime?
+  levelId           String?
+  level             Level?               @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  targetBand        Float?
+  nativeLanguage    String?              @default("Amharic")
+  city              String?
+  isActive          Boolean              @default(true)
+  streak            Int                  @default(0)
+  lastActiveAt      DateTime?
+  /// JWTs issued before this moment are rejected (set on password change/reset)
+  passwordChangedAt DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  attempts          Attempt[]
+  progress          LessonProgress[]
+  payments          Payment[]
+  aiUsage           AiUsage[]
+  resetTokens       PasswordResetToken[]
 }
 
 model Level {
@@ -215,4 +218,17 @@ model AiUsage {
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// SHA-256 of the token sent by email — the raw token is never stored
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }

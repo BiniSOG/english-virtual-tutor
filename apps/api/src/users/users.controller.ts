@@ -214,7 +214,10 @@ export class UsersController {
     if (dto.role) data.role = dto.role;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
     if (dto.name) data.name = dto.name;
-    if (dto.newPassword) data.passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    if (dto.newPassword) {
+      data.passwordHash = await bcrypt.hash(dto.newPassword, 10);
+      data.passwordChangedAt = new Date();
+    }
     if (dto.levelId) data.level = { connect: { id: dto.levelId } };
     if (dto.premiumUntil !== undefined) data.premiumUntil = dto.premiumUntil ? new Date(dto.premiumUntil) : null;
     if (dto.grantPremiumDays !== undefined) {

@@ -10,6 +10,7 @@ import { BillingModule } from './billing/billing.module';
 import { AuthGuard } from './common/auth.guard';
 import { Public } from './common/decorators';
 import { ContentModule } from './content/content.module';
+import { MailModule } from './mail/mail.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 
@@ -34,6 +35,7 @@ class HealthController {
       },
     }),
     PrismaModule,
+    MailModule,
     AuthModule,
     ContentModule,
     AiModule,

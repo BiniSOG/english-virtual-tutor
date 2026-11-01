@@ -9,13 +9,14 @@ Lisan is a full-stack English learning platform and virtual teacher for Ethiopia
 | Database | Neon serverless Postgres |
 | AI | Google Gemini (`@google/genai`), audio + text, JSON responses |
 | Payments | Chapa (telebirr, CBE Birr, M-Pesa, Amole, cards) |
+| Email | Resend (password reset) |
 | Hosting | Vercel (two projects: `apps/web` and `apps/api`) |
 
 ## Features
 
 **Students & guests**
 - Guests can browse every course, read free lessons and do free objective practices (scores shown, not saved).
-- Registration and login (JWT), profile with first language, target band and level, daily learning streak.
+- Registration and login (JWT), **forgot-password emails via Resend**, profile with first language, target band and level, daily learning streak.
 - **Courses → lessons** in Markdown with tables, tips, YouTube video and **listening audio** (browser text-to-speech in British/American/Australian accents, adjustable speed, multi-voice dialogues).
 - **Practice library**: multiple choice, gap-fill, IELTS reading (passage plus T/F/NG), listening, writing and speaking tasks, with instant grading and explanations.
 - **AI voice tutor ("Teacher Hana")**: the student talks into the microphone, live captions come from the Web Speech API, and the recorded audio goes to **Gemini**, which transcribes it, replies (read aloud) and corrects grammar and pronunciation. Scenarios: free talk, IELTS Parts 1–3, job interview, airport, university.
@@ -88,6 +89,8 @@ Set `PAYMENTS_MOCK=true` locally to simulate successful payments without Chapa.
    | `API_PUBLIC_URL` | `https://<your-api>.vercel.app` |
    | `CORS_ORIGINS` | `https://<your-web>.vercel.app` |
    | `CHAPA_SECRET_KEY` | from the Chapa dashboard |
+   | `RESEND_API_KEY` | from [resend.com](https://resend.com/api-keys) |
+   | `EMAIL_FROM` | e.g. `Lisan <no-reply@yourdomain.et>`, which must be on a domain verified in Resend |
    | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | your first admin account |
    | `FREE_AI_DAILY_LIMIT`, `PREMIUM_AI_DAILY_LIMIT` | optional (10 / 300) |
 
@@ -98,18 +101,22 @@ Set `PAYMENTS_MOCK=true` locally to simulate successful payments without Chapa.
 ### 3. Web project (`apps/web`)
 1. Import the same repo again → **Root Directory: `apps/web`** (Next.js is detected).
 2. Environment variable: `API_URL=https://<your-api>.vercel.app`
-3. Optional: `NEXT_PUBLIC_SUPPORT_CONTACT` (shown on the login page for password help).
-4. Deploy. The browser calls `/api/*` on the web domain and Next.js rewrites those calls to the API, so there are no CORS or cookie problems. `API_URL` is read at **build time**, so redeploy the web project if the API URL changes.
+3. Deploy. The browser calls `/api/*` on the web domain and Next.js rewrites those calls to the API, so there are no CORS or cookie problems. `API_URL` is read at **build time**, so redeploy the web project if the API URL changes.
    If long AI requests (essay grading can take 15–30 s) ever time out through the rewrite, set `NEXT_PUBLIC_API_URL=https://<your-api>.vercel.app` so the browser calls the API directly (CORS is already configured through `CORS_ORIGINS`).
 
-### 4. Chapa
+### 4. Resend (password reset email)
+1. Create an account at [resend.com](https://resend.com) and **verify your sending domain** (add the DNS records Resend shows you). Until it is verified, Resend's test sender `onboarding@resend.dev` can only email your own Resend account address.
+2. Create an API key and set `RESEND_API_KEY` and `EMAIL_FROM` on the API project, then redeploy.
+3. Make sure `WEB_URL` is your real web URL, because the link in the email points to `WEB_URL/reset-password`.
+
+### 5. Chapa
 In the Chapa dashboard, set the webhook URL to `https://<your-api>.vercel.app/api/billing/chapa/webhook`. The checkout also sends a callback URL (`/api/billing/chapa/callback`) and a return URL (`/checkout/verify`). Premium is activated **only** after the Chapa verify API confirms the amount and currency, and activation is idempotent.
 
 ## API overview
 
 All routes are prefixed with `/api`. 🔓 = guests allowed, 👤 = signed in, 🛡️ = admin.
 
-- 🔓 `POST /auth/register`, `POST /auth/login` · 👤 `GET/PATCH /auth/me`, `POST /auth/me/password`
+- 🔓 `POST /auth/register`, `POST /auth/login`, `POST /auth/forgot-password`, `GET/POST /auth/reset-password` · 👤 `GET/PATCH /auth/me`, `POST /auth/me/password`
 - 🔓 `GET /levels`, `/courses`, `/courses/:slug`, `/lessons/:id`, `/practices`, `/practices/:id`, `POST /practices/:id/submit`
 - 👤 `POST /lessons/:id/complete`, `GET /me/dashboard`, `/me/attempts`, `/me/attempts/:id`
 - 👤 `GET /ai/quota`, `POST /ai/writing/evaluate`, `/ai/speaking/evaluate`, `/ai/tutor/chat`, `/ai/tests/generate`, `/ai/tests/:id/submit`
@@ -117,7 +124,7 @@ All routes are prefixed with `/api`. 🔓 = guests allowed, 👤 = signed in, �
 - 🛡️ `/admin/stats`, `/admin/users`, `/admin/levels`, `/admin/courses`, `/admin/lessons`, `/admin/practices`, `/admin/plans`, `/admin/payments`, `/admin/ai/generate-practice`, `/admin/ai/generate-lesson`
 
 ## Notes
-- **Password reset:** there is no email service yet, so a student who forgets their password asks support, and an admin sets a temporary one in *Admin → Students*. Adding an email provider (e.g. Resend) for self-service reset links is a natural next step.
+- **Password reset:** *Forgot password?* emails a single-use link valid for 60 minutes (at most 3 emails per account per hour; the response never reveals whether an email is registered). Only a SHA-256 hash of the token is stored. Resetting or changing a password signs out every other device. Without `RESEND_API_KEY`, the API logs the email in development, and admins can still set a temporary password in *Admin → Students*.
 - AI output is validated and normalised on the server (bands clamped to 0–9, the four official criteria always present, bad quiz items dropped, letter answers mapped to options), so the UI never shows broken AI results.
 - AI quota is charged only when the AI call succeeds. Rate limiting is applied per signed-in user or per client IP (`X-Forwarded-For`), so traffic coming through the Vercel proxy isn't throttled as a single client.
 - Microphone access needs HTTPS (Vercel provides it) or `localhost`.

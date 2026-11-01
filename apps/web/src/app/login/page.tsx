@@ -43,9 +43,13 @@ function LoginForm() {
       <Field label="Email">
         <Input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
       </Field>
-      <Field label="Password" hint={`Forgot your password? ${process.env.NEXT_PUBLIC_SUPPORT_CONTACT ? `Contact ${process.env.NEXT_PUBLIC_SUPPORT_CONTACT}` : "Contact support"} and an admin will reset it for you.`}>
-        <Input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
-      </Field>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-slate-700">Password</span>
+          <Link href="/forgot-password" className="text-sm font-semibold text-brand-700 hover:underline">Forgot password?</Link>
+        </div>
+        <Input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" aria-label="Password" />
+      </div>
       <Button type="submit" className="w-full" size="lg" loading={loading}>
         Sign in
       </Button>
