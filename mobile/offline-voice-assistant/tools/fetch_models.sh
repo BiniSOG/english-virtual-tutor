@@ -17,7 +17,7 @@ mkdir -p "$CACHE" "$ASSETS"/{asr-en,asr-am,vad,tts-en,tts-am} "$JNI"
 fetch() { # url -> cache file
   local url="$1" out="$CACHE/$(basename "$1")"
   if [ ! -s "$out" ]; then
-    echo "downloading $url"
+    echo "downloading $url" >&2
     curl -fL --retry 5 --retry-delay 5 -o "$out.part" "$url"
     mv "$out.part" "$out"
   fi
