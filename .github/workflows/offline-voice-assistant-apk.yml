@@ -66,7 +66,7 @@ jobs:
       - name: Restore Gemini voice recordings
         uses: actions/cache/restore@v4
         with:
-          path: mobile/offline-voice-assistant/.voice-cache
+          path: mobile/offline-voice-assistant/voice-recordings
           key: gemini-voice-${{ github.run_id }}
           restore-keys: gemini-voice-
 
@@ -75,13 +75,13 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           ./gradlew --no-daemon -q :brain:exportVoiceScript
-          python tools/prerecord_gemini.py brain/build/voice-script/am.json app/src/main/assets/voice/am .voice-cache
+          python tools/prerecord_gemini.py brain/build/voice-script/am.json app/src/main/assets/voice/am voice-recordings
 
       - name: Save Gemini voice recordings
         if: always()
         uses: actions/cache/save@v4
         with:
-          path: mobile/offline-voice-assistant/.voice-cache
+          path: mobile/offline-voice-assistant/voice-recordings
           key: gemini-voice-${{ github.run_id }}
 
       - name: Verify models end to end (TTS -> ASR)
