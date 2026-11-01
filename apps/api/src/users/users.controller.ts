@@ -10,7 +10,7 @@ const SKILLS: Skill[] = ['GRAMMAR', 'VOCABULARY', 'READING', 'LISTENING', 'SPEAK
 const userSelect = {
   id: true, email: true, name: true, phone: true, role: true, premiumUntil: true, isActive: true,
   city: true, nativeLanguage: true, targetBand: true, streak: true, lastActiveAt: true, createdAt: true,
-  level: { select: { id: true, name: true, code: true, band: true } },
+  level: { select: { id: true, name: true, code: true, band: true, cefr: true, color: true } },
 } satisfies Prisma.UserSelect;
 
 @Controller()
