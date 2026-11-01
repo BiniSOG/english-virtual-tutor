@@ -72,7 +72,11 @@ class AccountOpeningAgent(
 
     private val dataSteps = listOf(Step.FULL_NAME, Step.DOB, Step.BIRTH_CITY, Step.NATIONALITY, Step.ACCOUNT_TYPE, Step.FAN)
 
-    private val bank get() = if (lang == Lang.AM) config.bankNameAm else config.bankNameEn
+    private val bank get() = when (lang) {
+        Lang.EN -> config.bankNameEn
+        Lang.AM -> config.bankNameAm
+        else -> lang.pack?.bankName ?: config.bankNameEn
+    }
 
     // ------------------------------------------------------------------ public API
 
@@ -88,8 +92,7 @@ class AccountOpeningAgent(
 
         when (Understanding.intent(text)) {
             Intent.CANCEL -> return cancel()
-            Intent.SWITCH_TO_AM -> return setLanguage(Lang.AM)
-            Intent.SWITCH_TO_EN -> return setLanguage(Lang.EN)
+            Intent.SWITCH_LANGUAGE -> return setLanguage(Understanding.requestedLanguage(text) ?: lang)
             Intent.REPEAT -> return lastReply ?: currentQuestion()
             Intent.BACK -> return goBack()
             Intent.YES -> return onYes()
@@ -346,7 +349,11 @@ class AccountOpeningAgent(
 
     // ------------------------------------------------------------------ helpers
 
-    private val agentName get() = if (lang == Lang.AM) config.agentNameAm else config.agentNameEn
+    private val agentName get() = when (lang) {
+        Lang.EN -> config.agentNameEn
+        Lang.AM -> config.agentNameAm
+        else -> lang.pack?.agentName ?: config.agentNameEn
+    }
 
     /** The customer's first name once we know it ("Abebe Kebede Bekele" -> "Abebe"). */
     private val firstName: String? get() = profile.fullName?.trim()?.split(Regex("\\s+"))?.firstOrNull()?.takeIf { it.isNotBlank() }

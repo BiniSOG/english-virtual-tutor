@@ -28,10 +28,14 @@ KEY = os.environ.get("GEMINI_API_KEY", "").strip()
 MODEL = os.environ.get("GEMINI_TTS_MODEL", "gemini-3.8-flash-tts")
 VOICE = os.environ.get("GEMINI_TTS_VOICE", "Kore")
 API = "https://generativelanguage.googleapis.com/v1beta"
+LANGUAGE = os.environ.get("GEMINI_TTS_LANGUAGE", "Amharic")
 STYLE = os.environ.get(
     "GEMINI_TTS_STYLE",
-    "Speak in Amharic as a warm, friendly young Ethiopian woman working at a bank, on a phone call, at a natural pace:",
+    f"Speak in {LANGUAGE} as a warm, friendly young Ethiopian woman working at a bank, on a phone call, at a natural pace:",
 )
+# Free-tier keys allow ~10 speech requests a day, so several lines are recorded per request and
+# the audio is cut at the pauses between them.
+BATCH = int(os.environ.get("GEMINI_TTS_BATCH", "20"))
 
 cache = os.path.join(cache_root, f"{MODEL}-{VOICE}")
 os.makedirs(cache, exist_ok=True)
@@ -56,9 +60,9 @@ def pick_model():
         print("using", MODEL)
 
 
-def synthesize(text):
+def synthesize(text, prompt=None):
     body = {
-        "contents": [{"parts": [{"text": f"{STYLE}\n{text}"}]}],
+        "contents": [{"parts": [{"text": prompt or f"{STYLE}\n{text}"}]}],
         "generationConfig": {
             "responseModalities": ["AUDIO"],
             "speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": VOICE}}},
@@ -109,51 +113,227 @@ def save_wav(path, pcm, rate):
 if KEY:
     pick_model()
 
-import threading
-from concurrent.futures import ThreadPoolExecutor
+import array
 
-lock = threading.Lock()
+
+def frames_energy(pcm, rate, hop_ms=10):
+    a = array.array("h", pcm)
+    hop = rate * hop_ms // 1000
+    return [max((abs(x) for x in a[i:i + hop]), default=0) for i in range(0, len(a), hop)], hop
+
+
+def silent_runs(pcm, rate, min_ms=250):
+    energy, hop = frames_energy(pcm, rate)
+    runs, i = [], 0
+    while i < len(energy):
+        if energy[i] < 400:
+            j = i
+            while j < len(energy) and energy[j] < 400:
+                j += 1
+            if j - i >= min_ms // 10:
+                runs.append((i, j))
+            i = j
+        else:
+            i += 1
+    return runs, hop
+
+
+def shorten_pauses(pcm, rate, max_ms=450):
+    """Long pauses inside a line sound unnatural (and break splitting): cap them."""
+    runs, hop = silent_runs(pcm, rate, min_ms=max_ms + 50)
+    out, last = bytearray(), 0
+    keep = max_ms // 10
+    for a, b in runs:
+        if a == 0 or b * hop * 2 >= len(pcm):
+            continue
+        out += pcm[last * hop * 2:(a + keep // 2) * hop * 2]
+        last = b - keep // 2
+    out += pcm[last * hop * 2:]
+    return bytes(out)
+
+
+def split_batch(pcm, rate, texts):
+    """Cut a multi-line recording into len(texts) clips at the pauses that best match where each
+    line should end (proportional to text length); None if no consistent split exists."""
+    n = len(texts)
+    if n == 1:
+        return [pcm]
+    runs, hop = silent_runs(pcm, rate, min_ms=300)
+    total = len(pcm) // 2 // hop
+    inner = [(a, b) for a, b in runs if a > 0 and b < total]
+    m = len(inner)
+    if m < n - 1:
+        return None
+    lens = [max(1, len(t)) for t in texts]
+    cum = [sum(lens[:k + 1]) / sum(lens) for k in range(n - 1)]
+    pos = [((a + b) / 2) / total for a, b in inner]
+    bonus = [0.12 * min((b - a) / 150, 1.0) for a, b in inner]
+    INF = float("inf")
+    # dp[k][j]: best cost with cut k placed at candidate j
+    dp = [[INF] * m for _ in range(n - 1)]
+    back = [[-1] * m for _ in range(n - 1)]
+    for j in range(m):
+        dp[0][j] = abs(pos[j] - cum[0]) - bonus[j]
+    for k in range(1, n - 1):
+        best, arg = INF, -1
+        for j in range(m):
+            if j > 0 and dp[k - 1][j - 1] < best:
+                best, arg = dp[k - 1][j - 1], j - 1
+            if best < INF:
+                dp[k][j] = best + abs(pos[j] - cum[k]) - bonus[j]
+                back[k][j] = arg
+    j = min(range(m), key=lambda x: dp[n - 2][x])
+    if dp[n - 2][j] == INF:
+        return None
+    chosen = [j]
+    for k in range(n - 2, 0, -1):
+        j = back[k][j]
+        chosen.append(j)
+    chosen.reverse()
+    bounds = [0] + [((inner[c][0] + inner[c][1]) // 2) * hop for c in chosen] + [len(pcm) // 2]
+    pieces = [pcm[bounds[k] * 2:bounds[k + 1] * 2] for k in range(n)]
+    for piece, text in zip(pieces, texts):
+        speech = len(trim_silence(piece, rate)) / 2 / rate
+        chars = max(1, len(text))
+        if not (0.025 * chars <= speech + 0.2 and speech <= 0.3 * chars + 0.8):
+            return None
+    return pieces
+
+
+VERIFY_MODEL = os.environ.get("GEMINI_VERIFY_MODEL", "gemini-3.5-flash")
+verify_available = True
+
+
+def norm_words(t):
+    import re
+    return re.sub(r"[^\w\s]", " ", t.lower()).split()
+
+
+def similar(a, b):
+    import difflib
+    return difflib.SequenceMatcher(None, " ".join(norm_words(a)), " ".join(norm_words(b))).ratio()
+
+
+def wav_bytes(pcm, rate):
+    import io
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(rate); w.writeframes(pcm)
+    return buf.getvalue()
+
+
+def verify(pieces, rate, texts):
+    """Transcribe every cut piece with Gemini and check it says the expected line.
+    Returns True/False, or None when verification isn't available (quota)."""
+    global verify_available
+    if not verify_available:
+        return None
+    parts = []
+    for i, p in enumerate(pieces):
+        parts.append({"text": f"Clip {i + 1}:"})
+        parts.append({"inlineData": {"mimeType": "audio/wav", "data": base64.b64encode(wav_bytes(p, rate)).decode()}})
+    parts.append({"text": f"Transcribe each of the {len(pieces)} clips exactly, in the original script ({LANGUAGE}). "
+                          "Return a JSON array of strings, one per clip, in order."})
+    body = {"contents": [{"parts": parts}], "generationConfig": {"responseMimeType": "application/json", "temperature": 0}}
+    req = urllib.request.Request(f"{API}/models/{VERIFY_MODEL}:generateContent", data=json.dumps(body).encode(),
+                                 headers={"Content-Type": "application/json", "x-goog-api-key": KEY})
+    try:
+        with urllib.request.urlopen(req, timeout=300) as r:
+            heard = json.loads(json.load(r)["candidates"][0]["content"]["parts"][0]["text"])
+    except urllib.error.HTTPError as e:
+        print("  verification unavailable:", e.code, flush=True)
+        if e.code == 429:
+            verify_available = False
+        return None
+    except Exception as e:
+        print("  verification error:", e, flush=True)
+        return None
+    if len(heard) != len(texts):
+        return False
+    scores = [similar(h, t) for h, t in zip(heard, texts)]
+    bad = [(t, h, round(sc, 2)) for t, h, sc in zip(texts, heard, scores) if sc < 0.55]
+    for t, h, sc in bad:
+        print(f"  mismatch {sc}: expected '{t}' heard '{h}'", flush=True)
+    return not bad
+
+
+def unambiguous(pcm, rate, n):
+    """Without verification, only trust batches whose long pauses are exactly the line breaks."""
+    runs, hop = silent_runs(pcm, rate, min_ms=1000)
+    total = len(pcm) // 2 // hop
+    return len([r for r in runs if r[0] > 0 and r[1] < total]) == n - 1
+
+
 made = failed = 0
 quota_hit = False
 
 
-def record(c):
+def record_batch(batch):
+    """Records the clips of [batch]; splits the batch in two if the pauses can't be found."""
     global made, failed, quota_hit
-    path = os.path.join(cache, c["id"] + ".wav")
-    if os.path.exists(path) or not KEY or quota_hit:
+    if quota_hit or not batch:
         return
-    for attempt in range(6):
+    texts = [c["text"] for c in batch]
+    if len(batch) == 1:
+        prompt = f"{STYLE}\n{texts[0]}"
+    else:
+        prompt = (f"{STYLE}\nRead the following {len(batch)} separate lines one after another. "
+                  "After each line, pause in complete silence for two full seconds before the next line. "
+                  "Read only the lines themselves.\n\n" + "\n\n".join(texts))
+    pcm = None
+    for attempt in range(4):
         try:
-            pcm, rate = synthesize(c["text"])
-            save_wav(path + ".part", trim_silence(pcm, rate), rate)
-            os.replace(path + ".part", path)
-            with lock:
-                made += 1
-            print(f"  recorded {c['id']}  {c['text']}", flush=True)
-            return
+            pcm, rate = synthesize(None, prompt)
+            break
         except urllib.error.HTTPError as e:
-            msg = e.read().decode(errors="replace")[:300]
+            msg = e.read().decode(errors="replace")[:400]
             if e.code == 429:
-                if "quota" in msg.lower() and ("day" in msg.lower() or "daily" in msg.lower()):
+                if "per day" in msg.lower() or "perday" in msg.lower() or "daily" in msg.lower():
                     quota_hit = True
-                    print("  daily quota reached:", msg, flush=True)
+                    print("  daily quota reached – the rest will be recorded by a later build", flush=True)
                     return
-                time.sleep(15 * (attempt + 1))
+                time.sleep(30 * (attempt + 1))
                 continue
             if e.code >= 500:
-                time.sleep(5)
+                time.sleep(10)
                 continue
-            print(f"  HTTP {e.code} for {c['id']}: {msg}", flush=True)
-            break
+            print(f"  HTTP {e.code}: {msg}", flush=True)
+            failed += len(batch)
+            return
         except Exception as e:
-            print(f"  error for {c['id']}: {e}", flush=True)
-            time.sleep(3)
-    with lock:
-        failed += 1
+            print("  error:", e, flush=True)
+            time.sleep(5)
+    if pcm is None:
+        failed += len(batch)
+        return
+    pieces = split_batch(pcm, rate, texts)
+    if pieces is not None and len(batch) > 1:
+        ok = verify(pieces, rate, texts)
+        if ok is None:
+            ok = unambiguous(pcm, rate, len(batch))
+        if not ok:
+            pieces = None
+    if pieces is None:
+        print(f"  could not split a batch of {len(batch)}; retrying in halves", flush=True)
+        mid = len(batch) // 2
+        record_batch(batch[:mid])
+        record_batch(batch[mid:])
+        return
+    for c, piece in zip(batch, pieces):
+        save_wav(os.path.join(cache, c["id"] + ".wav"), shorten_pauses(trim_silence(piece, rate), rate), rate)
+        made += 1
+        print(f"  recorded {c['id']}  {c['text']}", flush=True)
 
 
-with ThreadPoolExecutor(max_workers=int(os.environ.get("GEMINI_TTS_THREADS", "3"))) as pool:
-    list(pool.map(record, clips))
+todo = [c for c in clips if not os.path.exists(os.path.join(cache, c["id"] + ".wav"))]
+print(f"{len(todo)} clips to record ({LANGUAGE})")
+if KEY:
+    # Short words are grouped together, long sentences together, so the pauses stand out.
+    todo.sort(key=lambda c: len(c["text"]))
+    for i in range(0, len(todo), BATCH):
+        if quota_hit:
+            break
+        record_batch(todo[i:i + BATCH])
 
 # Copy everything we have into the app.
 shutil.rmtree(out_dir, ignore_errors=True)

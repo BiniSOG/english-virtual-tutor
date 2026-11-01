@@ -59,36 +59,61 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
     /** Which engine speaks each language (shown on the home screen). */
     val engineInUse = java.util.concurrent.ConcurrentHashMap<Lang, String>()
 
-    /** Amharic lines pre-recorded with Gemini at build time (assets/voice/am), id -> text. */
-    private val recordedAm: Map<String, String> by lazy {
+    /** Lines pre-recorded with Gemini at build time (assets/voice/<code>), per language: id -> text. */
+    private val recorded = java.util.concurrent.ConcurrentHashMap<Lang, Map<String, String>>()
+
+    private fun recordedFor(lang: Lang): Map<String, String> = recorded.getOrPut(lang) {
         runCatching {
-            val json = org.json.JSONObject(context.assets.open("voice/am/index.json").bufferedReader().use { it.readText() })
+            val json = org.json.JSONObject(context.assets.open("voice/${lang.code}/index.json").bufferedReader().use { it.readText() })
             val arr = json.getJSONArray("clips")
             (0 until arr.length()).associate { i -> arr.getJSONObject(i).let { it.getString("id") to it.getString("text") } }
         }.getOrDefault(emptyMap())
     }
+
     private val clipCache = object : LinkedHashMap<String, Pcm>(64, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pcm>?) = size > 80
     }
 
-    val hasRecordedAmharic: Boolean get() = recordedAm.isNotEmpty()
+    fun hasRecorded(lang: Lang): Boolean = recordedFor(lang).isNotEmpty()
+
+    /**
+     * The offline voice used for words that weren't pre-recorded (names) and for languages
+     * without recordings yet: Ge'ez-script Tigrinya is read by the Amharic voice, Latin-script
+     * Oromo and Afar by the English one.
+     */
+    fun fallbackFor(lang: Lang): Lang = when (lang) {
+        Lang.EN, Lang.AM -> lang
+        else -> if (lang.ethiopic) Lang.AM else Lang.EN
+    }
+
+    private suspend fun ensureVoice(l: Lang) {
+        if (pickSystemVoice(l) != null) return
+        if (!voices.containsKey(l) && catalog.hasTts(l)) loadMms(l)
+    }
 
     /** Load the voice for [lang] (slow: call off the main thread). */
     suspend fun prepare(lang: Lang) {
-        if (lang == Lang.AM && hasRecordedAmharic) {
-            engineInUse[lang] = "Gemini recordings (${recordedAm.size} clips)"
-            // Still load an offline voice for words that can't be pre-recorded (names).
-            if (pickSystemVoice(lang) == null && !voices.containsKey(lang) && catalog.hasTts(lang)) loadMms(lang)
+        val fb = fallbackFor(lang)
+        if (hasRecorded(lang)) {
+            engineInUse[lang] = "Gemini recordings (${recordedFor(lang).size} clips)"
+            ensureVoice(fb) // for names
             return
         }
         if (pickSystemVoice(lang) != null) {
             engineInUse[lang] = "phone voice " + systemVoice[lang]?.name
             return
         }
-        if (voices.containsKey(lang) || !catalog.hasTts(lang)) return
-        loadMms(lang)
-        if (voices.containsKey(lang)) engineInUse[lang] = "MMS + female voice shaping"
+        ensureVoice(fb)
+        engineInUse[lang] = when {
+            fb != lang -> "approximate: ${fb.nativeName} voice"
+            systemVoice[lang] != null -> "phone voice " + systemVoice[lang]?.name
+            voices.containsKey(lang) -> "MMS + female voice shaping"
+            else -> "none"
+        }
     }
+
+    /** Voices to keep loaded while [lang] is active. */
+    fun voicesNeededFor(lang: Lang): Set<Lang> = setOf(lang, fallbackFor(lang))
 
     private fun loadMms(lang: Lang) {
         val dir = ModelCatalog.ttsDir(lang)
@@ -126,23 +151,25 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
     suspend fun speak(text: String, lang: Lang) {
         stopRequested = false
         try {
-            if (lang == Lang.AM && hasRecordedAmharic) {
-                speakRecorded(text)
+            if (hasRecorded(lang)) {
+                speakRecorded(text, lang)
                 return
             }
-            if (systemVoice[lang] != null) {
+            // A phone voice for the language itself, otherwise the fallback voice.
+            val engine = if (systemVoice[lang] != null) lang else fallbackFor(lang)
+            if (systemVoice[engine] != null) {
                 // One request for the whole reply: the phone voice handles prosody across sentences.
-                synthesizeSystem(text, lang)?.let { play(it) }
+                synthesizeSystem(text, engine)?.let { play(it) }
                 return
             }
-            val voice = voices[lang]
+            val voice = voices[engine]
             if (voice == null) {
-                synthesizeSystem(text, lang, anyVoice = true)?.let { play(it) }
+                synthesizeSystem(text, engine, anyVoice = true)?.let { play(it) }
                 return
             }
             for (s in splitSentences(text)) {
                 if (stopRequested) break
-                play(synthesizeMms(voice, s, lang))
+                play(synthesizeMms(voice, s, engine))
             }
         } finally {
             level = 0f
@@ -151,33 +178,34 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
 
     // ------------------------------------------------------------------ Gemini recordings
 
-    private fun loadClip(id: String): Pcm? = synchronized(clipCache) { clipCache[id] } ?: runCatching {
-        val bytes = context.assets.open("voice/am/$id.wav").use { it.readBytes() }
+    private fun loadClip(lang: Lang, id: String): Pcm? = synchronized(clipCache) { clipCache["${lang.code}/$id"] } ?: runCatching {
+        val bytes = context.assets.open("voice/${lang.code}/$id.wav").use { it.readBytes() }
         parseWav(bytes)
-    }.getOrNull()?.also { synchronized(clipCache) { clipCache[id] = it } }
+    }.getOrNull()?.also { synchronized(clipCache) { clipCache["${lang.code}/$id"] = it } }
 
     /**
      * A reply made of recorded clips, with the leftover words (the customer's name) spoken by the
      * offline voice at the same loudness, joined with short natural gaps.
      */
-    private suspend fun speakRecorded(text: String) {
+    private suspend fun speakRecorded(text: String, lang: Lang) {
+        val fb = fallbackFor(lang)
         val rate = 24000
         val parts = ArrayList<FloatArray>()
         var clipRms = 0.0
         var clipCount = 0
-        val plan = VoiceScript.plan(text, recordedAm)
+        val plan = VoiceScript.plan(text, recordedFor(lang))
         val synthIdx = ArrayList<Int>()
         for (seg in plan) {
             if (stopRequested) return
             when (seg) {
-                is VoiceScript.Segment.Recorded -> loadClip(seg.id)?.let { pcm ->
+                is VoiceScript.Segment.Recorded -> loadClip(lang, seg.id)?.let { pcm ->
                     val x = VoiceShaper.convertRate(pcm.samples, pcm.rate, rate)
                     clipRms += rms(x); clipCount++
                     parts += x
                 }
                 is VoiceScript.Segment.Synth -> {
-                    val pcm = if (systemVoice[Lang.AM] != null) synthesizeSystem(seg.text, Lang.AM)
-                    else voices[Lang.AM]?.let { synthesizeMms(it, seg.text, Lang.AM) }
+                    val pcm = if (systemVoice[fb] != null) synthesizeSystem(seg.text, fb)
+                    else voices[fb]?.let { synthesizeMms(it, seg.text, fb) }
                     if (pcm != null) {
                         synthIdx += parts.size
                         parts += VoiceShaper.convertRate(pcm.samples, pcm.rate, rate)
@@ -223,7 +251,7 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
         return if (systemTtsReady) tts else null
     }
 
-    private fun localeFor(lang: Lang) = if (lang == Lang.AM) Locale("am", "ET") else Locale.US
+    private fun localeFor(lang: Lang) = if (lang == Lang.EN) Locale.US else Locale(lang.code, "ET")
 
     /** An installed, offline voice for [lang], female if the engine has one. */
     private suspend fun pickSystemVoice(lang: Lang): Voice? {
@@ -312,7 +340,7 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
     // ------------------------------------------------------------------ bundled MMS voice
 
     private fun textFor(lang: Lang, text: String): String {
-        var t = text.replace("\n", " ").replace("&", if (lang == Lang.AM) " እና " else " and ")
+        var t = text.replace("\n", " ").replace("&", if (lang.ethiopic) " እና " else " and ")
         if (catalog.ttsWantsRomanized(lang) || lang == Lang.EN && AmharicText.containsEthiopic(t)) t = AmharicText.romanize(t)
         return t.lowercase()
     }

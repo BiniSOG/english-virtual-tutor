@@ -1,0 +1,462 @@
+{
+ "languageNames": [
+  "qafar af",
+  "qafaraf",
+  "qafar afa",
+  "afar af",
+  "afar language"
+ ],
+ "bankName": "Demo Banki",
+ "agentName": "Hana",
+ "numbers": {
+  "units": [
+   "diba",
+   "iniki",
+   "namma",
+   "sidocu",
+   "affara",
+   "koona",
+   "leqeyi",
+   "malciini",
+   "baha",
+   "saga"
+  ],
+  "tens": [
+   "taban",
+   "labatanna",
+   "soddom",
+   "morotom",
+   "konotom",
+   "lictom",
+   "malcintam",
+   "bahtam",
+   "sagatam"
+  ],
+  "teenPrefix": "taban kee",
+  "hundred": "baqla",
+  "thousand": "alfi",
+  "multiplierAfter": false,
+  "conjunction": "kee"
+ },
+ "months": [
+  "Meskerem",
+  "Tikimti",
+  "Hidaar",
+  "Tahsaas",
+  "Tir",
+  "Yakaatit",
+  "Magaabit",
+  "Miyaziyya",
+  "Ginbot",
+  "Sene",
+  "Hamle",
+  "Nehasa",
+  "Pagume"
+ ],
+ "prompts": {
+  "greeting": [
+   "Sallaam, anu {agent} {bank} yaamih addat tanem. Gacsa neeh oyteenihih gadda gactin! Asaaku sin konti siinih fakuh siin qokiisheyyyo, caxxa daqiiqitte kiba. Net aysaasaqamaak, ta wiidiyo seeco meqennah wargat yaabak sin agleh keenih meesiyyanah xabe yoni. Qimmoomaa?",
+   "Sallaam qaleekum, anu {agent} {bank} fanak siinih wamqiyak yenem. Seeco oytiyyaay gadda gactin. Ta saaqa sin cusub konti oytih siinih faku kossa. Ta seeco sin meqennah aysassaaqam fitam yaaba. Qimmaynaa?"
+  ],
+  "notReady": [
+   "Meqe, saaza allee. Qimmoy yambalen waqdi oobi kaxxa affat eyeeniyya.",
+   "Yoo fanah meqe. Isin gurra geyteenihih yoo ooba, yeey yina."
+  ],
+  "askName": [
+   "Meqe! Qimmat siin kulla migaq kee ayna magaq neeh acaya.",
+   "Aysaasaqama! Qimmat siin kulla migaq iyyo sin aytih ooba?",
+   "Hayya! Siin kulla migaq iyyayi, aysasaaqama?"
+  ],
+  "askDob": [
+   "Sin aysassaagayta, {first}. Aysaasaqama, siin xala lay: xalot xega mannaa?",
+   "Gadda gactin, {first}. Manino waqdi xalinteena?",
+   "Kaxxa meqe, {first}. Siin xalot ayyot aayot yoo oobi?"
+  ],
+  "askCity": [
+   "Oobeh. Annika magala addat xalinteena?",
+   "Gadda gactin. Annikeetii xalinteem? Annika magala?",
+   "Aysaasaqama. Siin xalot magala iyyay?"
+  ],
+  "askNationality": [
+   "Hayya. Siin reeda/baaxo lay?",
+   "Gadda gactin. Siin baaxo iyyay?"
+  ],
+  "askAccountType": [
+   "Meqe. Annikotta konti fakkitaanaah gurra alleena? Dabqi konti, cusub konti, ribaa-maleh tan konti, aw dagal maraa konti?",
+   "Hayya. Annikotta konti siinih meqe: dabqi konti, bayti konti, ribaa-malah konti, aw meqelaayayti konti?"
+  ],
+  "askFan": [
+   "Xageh sugeena. Ahuk sin sugeya yaabiyya meqennah yaaban. Siin Fayda namba, FAN Lakkana neeh ooba?",
+   "Dagal gabi kinni. Meqennah sin agle xagaah, fayda namba FAN lakqan lakqanal neeh eyeeni."
+  ],
+  "confirm": [
+   "{value}. Anu tonnah iyyeh aymiseeni?",
+   "Hayya, {value}. Nummaay?",
+   "Qusba meqsiyyah, {value}?",
+   "{value} yoo oobih. Nummaay?"
+  ],
+  "nameNeedsFull": [
+   "Siin kulla migaq kee siin abbah migaq gudaayih neeh acayaa?",
+   "Madaara, siin kulla migaq kee siin abbah migaq elle tanem yaaba."
+  ],
+  "dobFuture": [
+   "Umm, ta ayro suge kal matane. Siin xalot ayro qusbaah yoo ooba?",
+   "Ta ayro ambal matan. Xalot ayro aysasaaqama."
+  ],
+  "dobUnderage": [
+   "Siin madaara, konti isinni fakkitaanih 18 sanad kee teyna taban sugaah tanen. Dagal marayti konti banki daqaaral tiya abbah aw soynah addat fakkima."
+  ],
+  "fanPartial": [
+   "Hayya, {digits}. Abitaah ooba.",
+   "{digits}. Aysasaaqama tura."
+  ],
+  "fanLength": [
+   "Umm, FAN lakkana {n} digiiti allee, yoo geyteem lay {got}. Qimmat oobaah eyeeni?"
+  ],
+  "otpSent": [
+   "Gadda gactin. Lica namba alle leh tan sissika lakgana siin Fayda nambat tan biluh oobise. Lakgana mannaa?",
+   "Meqe. SMS oytit lica namba tan lakgana geetana. Yoo oobisaa?"
+  ],
+  "otpWrong": [
+   "Umm, ta lakkana masagala. Aysaasaqamaa qusbaah wagitaah eyeeni?",
+   "Ah numma lakkana malito. Axwah teyna nagora."
+  ],
+  "otpOk": [
+   "Meqenna, meqe numma tamo geyte.",
+   "Gadda gactin, aysaasaqama."
+  ],
+  "review": [
+   "Ta'at anu allee tan oytitte. Saasay amay wagita. Konti siinih fakuu?",
+   "Hayya, siin oytitte saasay amay qakise. Qundhi yeey iyyanay konti siinih fakayyo."
+  ],
+  "creating": [
+   "Kaxxa meqe, konti siinih fakaah ane. Ah daqiiqa gabi kinni.",
+   "Aysaasaqama. Daqiiqa yoo alaama ta'at xiqsissayyo."
+  ],
+  "done": [
+   "Meqennah gabi, {first}! Siin {type} tonnah fakime. Siin konti namba {account}. Meqenna gurra, {bank} fanah meqe aysasaaqama!",
+   "Meqenna gurra, {first}! Siin {type} meqennah gabi kinni. Siin konti namba {account}. {bank} dooriteenih gadda gactin!"
+  ],
+  "notUnderstood": [
+   "Madaara, meqennah mayaabinni. {question}",
+   "Madaara, aysaasaqama qusbaah iyya? {question}",
+   "Madaara, yaaba barri malino. {question}"
+  ],
+  "langSwitched": [
+   "Yeey, qafar afat aysaasaqayna."
+  ],
+  "cancelled": [
+   "Hayya, bayxaa malino. Sin waqdih gadda gactin, meqe ayro siinih haway! Nageyna!"
+  ],
+  "afterFaq": [
+   "Tonnaal, siin konti fakkot fanah gacna. {question}",
+   "Hayya! Ta'at, {question}"
+  ],
+  "editing": [
+   "Yeey, tonnah meqsena. {question}",
+   "Bayxaa malino. {question}"
+  ],
+  "silence": [
+   "Sallaam? Alle tanenii? {question}",
+   "Anu amaat ane. {question}",
+   "Sin waqdi allee. {question}"
+  ],
+  "reviewHint": [
+   "Konti fakonah Yeey iyya, aw ta korosa axay: migaq yoo korosa."
+  ],
+  "digitsSoFar": [
+   "{digits}. Abitaah tura.",
+   "Hayya, {digits}. Gacsa tanem lay?"
+  ]
+ },
+ "faq": [
+  {
+   "keywords": [
+    "rekorde",
+    "rekordng",
+    "wiidiyo",
+    "kaamera",
+    "filmi",
+    "sirri",
+    "wagaay"
+   ],
+   "answer": "Fooca kaamera ta waqdi aysaasaqama banki sin agle nummah sin kinniimih nagoruh kinni. Wiidiyo ta bilut suga."
+  },
+  {
+   "keywords": [
+    "sanad",
+    "wargat",
+    "fanta",
+    "gurra",
+    "bayte",
+    "baaha",
+    "wargata",
+    "poto",
+    "pasporte"
+   ],
+   "answer": "Fayda namba kee elle fanti tan bilu namba qellee. Wargat tanayti kal xiqtana."
+  },
+  {
+   "keywords": [
+    "fan",
+    "fayda",
+    "reeda",
+    "namba",
+    "annikat",
+    "geya"
+   ],
+   "answer": "FAN namba siin Fayda wargatal aw fayda ap-at tan namba kinni. Sin meqenna agleh xagsoh kinni."
+  },
+  {
+   "keywords": [
+    "dabqi",
+    "bayti",
+    "baxso",
+    "kayfiya",
+    "kuntitte",
+    "annika",
+    "konti",
+    "aysaqayyi"
+   ],
+   "answer": "Dabqi konti ribaa geyaah lakqo dabqah meqe. Bayti konti sissika saaco kee cekik kinni. Ribaa-maleh konti Islaam banki gurra katata."
+  },
+  {
+   "keywords": [
+    "xeqet",
+    "waqdi",
+    "daqiiqitte",
+    "sissik",
+    "sissikah",
+    "mannal xeqe"
+   ],
+   "answer": "Sidooca daqiiqa fanta. Konti gabi kinni waqdal sissikah xogga taama qimmita."
+  },
+  {
+   "keywords": [
+    "xaane",
+    "dagal",
+    "lakqo",
+    "gatay",
+    "gaali",
+    "fiise",
+    "gacsa",
+    "saaha"
+   ],
+   "answer": "Konti fakkooti bilsha kinni. Dagal konti lakqo kee fiise banki kibriyat tanem kinni, daqaara bankal oobissan."
+  },
+  {
+   "keywords": [
+    "ribaa",
+    "miisaana",
+    "persenti"
+   ],
+   "answer": "Ribaa miisaana Itaapiya Kaxxa Banki yaabeh tan daqaara kee banki madaara katata."
+  },
+  {
+   "keywords": [
+    "otp",
+    "lakkana",
+    "sms",
+    "gey",
+    "geyee",
+    "mageyinni",
+    "waraga"
+   ],
+   "answer": "Sissika lakkana siin Fayda nambat tan biluh gufa. Ta oflayin agat saasay amay elle yabbaliya."
+  },
+  {
+   "keywords": [
+    "nagay",
+    "amaanat",
+    "security",
+    "oyti",
+    "informeshiin",
+    "qada",
+    "daabe"
+   ],
+   "answer": "Kulla oyti ta bilat intirneetiyyi maleh xiqsima. Ta demo-t intirneetiyyi maleh fanah matata."
+  },
+  {
+   "keywords": [
+    "iyya",
+    "isiin",
+    "roboot",
+    "nama",
+    "num",
+    "ai",
+    "numma"
+   ],
+   "answer": "Anu AI aysaasaqama kinniyoo ta bilat taamita. Qafar af aw Amhara afat konti fakuh sin qokiise."
+  },
+  {
+   "keywords": [
+    "kaarde",
+    "atm",
+    "debit",
+    "mobaayil",
+    "bankin",
+    "app"
+   ],
+   "answer": "Konti fakkimaak gaba teenik sarra, ATM kaarde kee mobaayil bankin app-at essera takka."
+  }
+ ],
+ "ui": {
+  "6-digit code": "Lica digiiti lakkana",
+  "AI Account Assistant": "AI Konti Qokiisiya",
+  "Account Created Successfully! 🎉": "Konti Meqennah Fakimtee! 🎉",
+  "Account Number": "Konti Namba",
+  "Account Type": "Konti Kayfiya",
+  "Account holder": "Konti Yallaya",
+  "Answer": "Gacsa",
+  "Assistant language": "Qokiisiya Afa",
+  "Audio": "Yaaba",
+  "Birth City": "Xalot Magala",
+  "Birth city": "Xalot magala",
+  "Call ended": "Seeco Gabi Temeete",
+  "Call recording (video with both voices) saved:": "Seeco rekordng (wiidiyo namma yaabaayii):",
+  "Confirm": "Aysaasaqa",
+  "Confirm & Create": "Aysaasaqa & Faku",
+  "Confirm your information": "Siin Oyti Aysaasaqa",
+  "Connecting…": "Gabbagabata…",
+  "Continue": "Abita",
+  "Create Account": "Konti Faku",
+  "Creating your account…": "Siin konti fakkimaay…",
+  "Creating your bank account": "Siin banki konti fakkimaay",
+  "Data": "Oyti",
+  "Date of Birth": "Xalot Ayro",
+  "Decline": "Diraba",
+  "Demo Bank Super App": "Demo Banki Kaxxa App",
+  "Demo Bank · Account opening": "Demo Banki · Konti fakkoti",
+  "Edit": "Korsa",
+  "FAN (National ID number)": "FAN (Reeda Migaq Namba)",
+  "Full Name": "Kulla Migaq",
+  "Full name": "Kulla migaq",
+  "Go to Home": "Qari Fanah Gaca",
+  "Hana": "Hana",
+  "Hana is speaking": "Hana yaabaat ane",
+  "Hana · Demo Bank": "Hana · Demo Banki",
+  "Incoming video call": "Amaat tan wiidiyo seeco",
+  "Listening…": "Oobaytah…",
+  "Login": "Cula",
+  "Nationality": "Baaxo",
+  "No sessions yet.": "Tuk waqdi mala.",
+  "Open your account in minutes": "Caxxa daqiiqatal konti faku",
+  "Pick date": "Ayro Doora",
+  "Retrieving your details": "Siin oyti baahaay",
+  "SMS (offline demo): your code is ": "SMS (oflayin): siin lakkana kinni",
+  "Saved Sessions": "Dabaanih Tan Waqdi",
+  "Saved sessions": "Dabaanih tan waqdi",
+  "Saving the call recording…": "Seeco rekordng dabaay…",
+  "Say \"yes\" if this is correct": "Ah numma tetek \"yeey\" iyya",
+  "Session saved on this phone:": "Ta bilat waqdi dabaamte:",
+  "Setting up your profile": "Siin proopayli xiqsiiseey",
+  "Speech recognition, voice and assistant run 100% on this phone.": "Yaaba xago, af kee qokiisiya 100% ta bilat taamita.",
+  "Verify OTP": "OTP Aysaasaqa",
+  "Verifying identity (National ID)": "Agle aysaasaqa (Reeda Migaq)",
+  "Video": "Wiidiyo",
+  "Video call · ": "Wiidiyo seeco ·",
+  "View saved sessions": "Dabaamte waqdi wagita",
+  "Welcome to": "Meqennah amaata fanah",
+  "Yes, let's start": "Yeey, qimmooma",
+  "You're muted": "Yaab maleh tanen",
+  "You: ": "Isiin:",
+  "Your account is now active. You can start using it immediately.": "Siin konti ta'at taama qimmite. Sissikah taamisa tanen.",
+  "completed": "gabi temeete",
+  "not finished": "magabinna",
+  "with the AI Video Assistant – works offline": "AI Wiidiyo Qokiisiya linah – oflayin taamita"
+ },
+ "accountTypes": {
+  "SAVINGS": "Dabqi Konti",
+  "CURRENT": "Bayti Konti",
+  "INTEREST_FREE": "Ribaa-Maleh Konti",
+  "YOUTH": "Meqelaayayti Konti"
+ },
+ "intents": {
+  "yes": [
+   "yeey",
+   "yey",
+   "numma",
+   "tonna",
+   "hayya",
+   "meqe",
+   "qimmooma",
+   "abita",
+   "eyeen"
+  ],
+  "no": [
+   "malle",
+   "hinna",
+   "diraba",
+   "tammite",
+   "amqale"
+  ],
+  "repeat": [
+   "gacsa iyya",
+   "qusbaah iyya",
+   "mayaabinni",
+   "oobaah iyya"
+  ],
+  "back": [
+   "duma fanah gaca",
+   "sarrah gaca",
+   "derse"
+  ],
+  "cancel": [
+   "qulsa",
+   "waqa",
+   "seeco korise"
+  ],
+  "question": [
+   "iyya",
+   "maxay",
+   "mannal",
+   "manino waqdi",
+   "annikat",
+   "mangga",
+   "xiqimaa",
+   "fantaa"
+  ]
+ },
+ "namePrefixes": [
+  "yi migaq kinni",
+  "yi kulla migaq kinni",
+  "anu kinniyo",
+  "yoo yaamem"
+ ],
+ "nameSuffixes": [
+  "yi migaq kinni",
+  "gadda gactin",
+  "aysasaaqama"
+ ],
+ "placeFillers": [
+  "anu xalinteem",
+  "xalinteem",
+  "magala kinni",
+  "magala"
+ ],
+ "editKeys": {
+  "FULL_NAME": [
+   "migaq",
+   "yi migaq korsa"
+  ],
+  "DOB": [
+   "xalot ayro",
+   "xalot"
+  ],
+  "BIRTH_CITY": [
+   "magala",
+   "xalot magala"
+  ],
+  "NATIONALITY": [
+   "reeda",
+   "baaxo"
+  ],
+  "ACCOUNT_TYPE": [
+   "konti kayfiya"
+  ],
+  "FAN": [
+   "Fayda namba",
+   "ID namba"
+  ]
+ }
+}

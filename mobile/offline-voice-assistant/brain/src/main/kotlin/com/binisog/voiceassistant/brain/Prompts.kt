@@ -174,7 +174,7 @@ object Prompts {
 
     /** A random variant, never the same one twice in a row. */
     fun template(key: String, lang: Lang, random: Random): String {
-        val list = (if (lang == Lang.AM) am else en)[key] ?: error("missing prompt $key")
+        val list = linesFor(lang)[key] ?: en[key] ?: error("missing prompt $key")
         if (list.size == 1) return list[0]
         val id = "${lang.code}:$key"
         var i = random.nextInt(list.size)
@@ -192,10 +192,16 @@ object Prompts {
 
     /** First variant (stable; used by tests and by the FAQ follow-ups). */
     fun get(key: String, lang: Lang, vararg args: Pair<String, String>): String =
-        fill(((if (lang == Lang.AM) am else en)[key] ?: error("missing prompt $key"))[0], *args)
+        fill((linesFor(lang)[key] ?: en[key] ?: error("missing prompt $key"))[0], *args)
 
     fun hasAllKeysInBothLanguages(): Boolean = en.keys == am.keys
 
     /** Every variant of every line (used to pre-record the Amharic voice). */
-    fun allTemplates(lang: Lang): List<String> = (if (lang == Lang.AM) am else en).values.flatten()
+    fun allTemplates(lang: Lang): List<String> = linesFor(lang).values.flatten()
+
+    private fun linesFor(lang: Lang): Map<String, List<String>> = when (lang) {
+        Lang.EN -> en
+        Lang.AM -> am
+        else -> lang.pack?.prompts ?: en
+    }
 }

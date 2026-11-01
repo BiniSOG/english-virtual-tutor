@@ -1,0 +1,453 @@
+{
+ "languageNames": [
+  "afaan oromoo",
+  "afaan oromo",
+  "oromiffa",
+  "oromoo"
+ ],
+ "bankName": "Baankii Deemoo",
+ "agentName": "Haanaa",
+ "numbers": {
+  "units": [
+   "zeeroo",
+   "tokko",
+   "lama",
+   "sadii",
+   "afur",
+   "shan",
+   "ja'a",
+   "torba",
+   "saddet",
+   "sagal"
+  ],
+  "tens": [
+   "kudhan",
+   "digdama",
+   "soddoma",
+   "afurtama",
+   "shantama",
+   "jaatama",
+   "torbaatama",
+   "saddettama",
+   "sagaltama"
+  ],
+  "teenPrefix": "kudha",
+  "hundred": "dhibba",
+  "thousand": "kuma",
+  "multiplierAfter": true,
+  "conjunction": "fi"
+ },
+ "months": [
+  "Fuulbaana",
+  "Onkololeessa",
+  "Sadaasa",
+  "Muddee",
+  "Amajjii",
+  "Guraandhala",
+  "Bitootessa",
+  "Eebla",
+  "Caamsaa",
+  "Waxabajjii",
+  "Adoolessa",
+  "Hagayya",
+  "Qaammee"
+ ],
+ "prompts": {
+  "greeting": [
+   "Akkam, ani {agent} {bank} irraayyi. Waamicha kana fudhachuu keessaniif galatoomaa! Har'a akka lakkoofsa herregaa keessan banattan isinin gargaara, daqiiqaa muraasa qofa fudhata. Akkuma beektan waamichi viidiyoo kun mirkaneessaaf ni waraabama. Jalqabnaa?",
+   "Akkam, maqaan koo {agent} dha, {bank} irraan isiniif bilbilaa jira. Waamicha koo fudhachuu keessaniif galatoomaa. Amma herrega keessan haaraa isiniif banyuu nan danda'a, dafamee xumurama. Waamichi kun nageenya keessaniif ni waraabama. Jalqabuuf qophiidhaa?"
+  ],
+  "notReady": [
+   "Rakkoon hin jiru, yeroo keessan fudhadhaa. Yeroo qophaaitan eeyyee qofa jedhaa.",
+   "Homaa miti. Yeroo qophaaitan natti himaa, eeyyee qofa jedhaa."
+  ],
+  "askName": [
+   "Baay'ee gaarii! Maqaa keessan guutuu irraa haa jalqabnu, maaloo.",
+   "Baraana. Jalqaba irratti, maqaa keessan guutuu natti himuu dandeessuu?",
+   "Tole! Maqaan keessan guutuun maali, maaloo?"
+  ],
+  "askDob": [
+   "Isin wallaaluu kootti baay'ee gammadeera, {first}. Guyyaan dhaloota keessanii maali?",
+   "Galatoomaa, {first}. Guyyaan dhaloota keessanii yoomi?",
+   "Gaarii, {first}. Guyyaa dhaloota keessanii natti himuu dandeessuu?"
+  ],
+  "askCity": [
+   "Naaf galeera. Magaalaa kamitti dhalattan?",
+   "Galatoomaa. Magaalaa kamitti dhalattan?",
+   "Baay'ee gaarii. Magaalaan dhaloota keessanii maali?"
+  ],
+  "askNationality": [
+   "Tole. Lammummaan keessan hoo?",
+   "Galatoomaa. Lammummaan keessan maali?"
+  ],
+  "askAccountType": [
+   "Baay'ee gaarii. Herrega gosa kam banyachuu feetu? Qusannoo, socho'aa, ribaa-ala, moo qusannoo dargaggoo?",
+   "Tole. Herrega kamtu isiniif mijata: qusannoo, socho'aa, ribaa-ala, moo qusannoo dargaggoo?"
+  ],
+  "askFan": [
+   "Xumuruuf dhihaanneera. Amma eenyummaa keessan mirkaneessuun qaba. Lakkoofsa Fayda keessan, FAN keessan, suuta naaf dubbisuu dandeessuu?",
+   "Xumuruuf xiqqo qofatu hafe. Mirkaneessa eenyummaatiif, lakkoofsa lakkoofsaan lakkoofsa ID Fayda keessan, FAN natti himaa."
+  ],
+  "confirm": [
+   "{value}. Sirriitti naaf galee?",
+   "Tole, {value}. Sirriidhaa?",
+   "Mirkaneessuudhaaf, {value}?",
+   "Ani {value} jedheen dhaga'e. Sirriidhaa?"
+  ],
+  "nameNeedsFull": [
+   "Maqaa abbaa keessanii dabalatee maqaa keessan guutuu naaf kennuu dandeessuu?",
+   "Dhiifama, maqaa abbaa keessan dabalatee maqaa keessan guutuu naaf barbaachisa."
+  ],
+  "dobFuture": [
+   "Mmoo, guyyaan kun fuuldura jira. Guyyaa dhaloota keessanii irra deebitanii natti himuu dandeessuu?"
+  ],
+  "dobUnderage": [
+   "Dhiifama, kophaa herrega banyachuuf umuriin keessan yoo xiqqaate 18 ta'uu qaba. Herregni dargaggoo damee baankii irratti warra keessan waliin banamuu danda'a."
+  ],
+  "fanPartial": [
+   "Tole, {digits}. Itti fufaa.",
+   "{digits}. Maaloo itti fufaa."
+  ],
+  "fanLength": [
+   "Mmoo, FAN lakkoofsa {n} qabaachuu qaba, garuu ani {got} argadhe. Jalqaba irraa irra deebitanii naaf dubbisuu dandeessuu?"
+  ],
+  "otpSent": [
+   "Galatoomaa. Lakkoofsa digiti 6 qabu kan lakkoofsa bilbila ID Fayda keessan irratti galmeeffametti ergeera. Koodichi maali?",
+   "Baay'ee gaarii. Amma koodii digitii 6 qabu ergaa SMS'n argattu. Naaf dubbisuu dandeessuu?"
+  ],
+  "otpWrong": [
+   "Mmoo, koodiin kun wal hin simne. Irra deebitanii ilaaltanii naaf dubbisuu dandeessuu?",
+   "Koodii sirrii hin fakkaatu. Irra deebi'uu haa yaallu."
+  ],
+  "otpOk": [
+   "Baay'ee gaarii, eenyummaan keessan mirkanaa'eera.",
+   "Galatoomaa, mirkanaa'eera."
+  ],
+  "review": [
+   "Odeeffannoon ani qabu kanaa gadii ti. Maaloo skreenii irratti ilaalaa. Herrega keessan banyuu?",
+   "Tole, odeeffannoo keessan skreenii irratti kaa'eera. Waanti hundi sirrii yoo ta'e, eeyyee qofa jedhaa ani herrega ni bana."
+  ],
+  "creating": [
+   "Baay'ee gaarii, amma herrega keessan banaa jira. Daqiiqaa muraasa qofa fudhata.",
+   "Baraana. Waanta hundumaa hangan qopheessutti sekondii tokko naaf kennaa."
+  ],
+  "done": [
+   "Hundi xumurameera, {first}! Herregni {type} keessan banameera. Lakkoofsi herrega keessanii {account} dha. Baga gammaddan, gara {bank} baga nagaan dhuftan!",
+   "Baga gammaddan, {first}! Herregni {type} keessan qophaa'eera. Lakkoofsi herrega keessanii {account} dha. {bank} filachuu keessaniif galatoomaa!"
+  ],
+  "notUnderstood": [
+   "Dhiifama, waan isin jettan sirriitti naaf hin galle. {question}",
+   "Dhiifama, irra deebitanii natti himuu dandeessuu? {question}",
+   "Dhiifama, sagaleen qulqulluu hin ture. {question}"
+  ],
+  "langSwitched": [
+   "Tole, Afaan Ingiliziitiin itti fufna."
+  ],
+  "cancelled": [
+   "Tole, rakkoon hin jiru. Yeroo keessaniif galatoomaa, guyyaa gaarii qabaadhaa. Nagayatti!"
+  ],
+  "afterFaq": [
+   "Eegaa, gara gaaffii keessaniitti haa deebinu. {question}",
+   "Tole! Amma, {question}"
+  ],
+  "editing": [
+   "Tole, isa sana haa sirreessinu. {question}",
+   "Rakkoon hin jiru. {question}"
+  ],
+  "silence": [
+   "Akkam? Achi jirtuu? {question}",
+   "Ani achi jira. {question}",
+   "Yeroo keessan fudhadhaa. {question}"
+  ],
+  "reviewHint": [
+   "Herrega banyachuuf eeyyee qofa jedhaa, kan jijjiiramuu qabu yoo jiraate natti himaa, fakkeenyaaf, maqaa koo jijjiiri."
+  ],
+  "digitsSoFar": [
+   "{digits}. Itti fufaa.",
+   "Tole, {digits}. Kan hafe hoo?"
+  ]
+ },
+ "faq": [
+  {
+   "keywords": [
+    "waraabbii",
+    "waraabuu",
+    "viidiyoo",
+    "kaameraa",
+    "filmii",
+    "iccitii",
+    "ilaaluu"
+   ],
+   "answer": "Kaameraan fuulduraa waraabbii kana ni waraaba, kunis baankichi dhuguma isin ta'uu keessan mirkaneeffachuuf. Viidiyoon kun bilbila kana irratti qofa hafa."
+  },
+  {
+   "keywords": [
+    "sanada",
+    "sanadoota",
+    "barbaachisa",
+    "ulaagaa",
+    "fiduu",
+    "id",
+    "suuraa",
+    "paaspoortii"
+   ],
+   "answer": "Lakkoofsa waraqaa eenyummaa Fayda fi lakkoofsa bilbilaa irratti galmeeffame qofa barbaaddu. Sanadni waraqaa hin barbaachisu."
+  },
+  {
+   "keywords": [
+    "fan",
+    "fayda",
+    "biyyooleessa",
+    "lakkoofsa",
+    "eessa",
+    "argachuu"
+   ],
+   "answer": "FAN lakkoofsa kartii eenyummaa Fayda irratti maxxanfame ykn iyyata Fayda irratti argamudha. Eenyummaa keessan mirkaneessuuf fayyada."
+  },
+  {
+   "keywords": [
+    "qusannoo",
+    "socho'aa",
+    "garaagarummaa",
+    "gosa",
+    "gosoota",
+    "kam",
+    "herrega",
+    "filatamaa"
+   ],
+   "answer": "Herregni qusannoo dhala kan argamsiisuu fi qusachuuf gaariidha. Herregni socho'aa kafaltii deddeebi'aa fi cheekii qaba. Herregni ribaa-ala seera baankii Islaamaa hordofa."
+  },
+  {
+   "keywords": [
+    "dheeraa",
+    "yeroo",
+    "daqiiqaa",
+    "ariifachiisaa",
+    "muraasa",
+    "hangam"
+   ],
+   "answer": "Yeroo baay'ee daqiiqaa sadii qofa fudhata. Akkuma xumurreen herregni keessan danda'ee hojjeta."
+  },
+  {
+   "keywords": [
+    "ka'umsa",
+    "baasii",
+    "kaffaltii",
+    "qusaannoo",
+    "qallabbi",
+    "baasii muraasa"
+   ],
+   "answer": "Herrega banuun kaffaltii hin qabu. Lakkoofsi herregaa fi kaffaltiin haala baankichaa irratti hundaa'a."
+  },
+  {
+   "keywords": [
+    "dhala",
+    "haala",
+    "dhibbeentaa"
+   ],
+   "answer": "Dhalawwan tarree baankii fi seera Baankii Biyyooleessa Itoophiyaa hordofu. Herregni qusannoo dhibbeentaa ulaagaa gadi aanaa argata."
+  },
+  {
+   "keywords": [
+    "otp",
+    "koodii",
+    "sms",
+    "fudhachuu",
+    "argachuuf",
+    "hin ergamne",
+    "ergaa"
+   ],
+   "answer": "Koodiin yeroo tokkoo lakkoofsa bilbila ID Fayda irratti ergaa jira. Deemoo toora ala kana irratti skreenii irratti agarsiifama."
+  },
+  {
+   "keywords": [
+    "nageenya",
+    "eegumsa",
+    "odeeffannoo",
+    "qoodee",
+    "kuusaa"
+   ],
+   "answer": "Waanti hundi intarneetii malee bilbila kana irratti hojjeta. Deemoo kana keessatti odeeffannoon eessaayyuu hin ergamuu."
+  },
+  {
+   "keywords": [
+    "eenyu",
+    "isin",
+    "robootii",
+    "nama",
+    "ai",
+    "dhugaa"
+   ],
+   "answer": "Ani gargaaraa AI bilbila kana irratti guutummaatti hojjetudha. Herrega Afaan Ingiliizii ykn Afaan Oromootiin banyachuuf isin gargaaruu nan danda'a."
+  },
+  {
+   "keywords": [
+    "kaardii",
+    "atm",
+    "deebiti",
+    "mobaayila",
+    "baankii",
+    "iyyata"
+   ],
+   "answer": "Herregni erga banamee booda kaardii ATM gaafachuu fi mobaayil baankii iyyata irratti jalqabsiisuu dandeessu."
+  }
+ ],
+ "ui": {
+  "6-digit code": "Koodii digitii 6",
+  "AI Account Assistant": "Gargaaraa Herregaa AI",
+  "Account Created Successfully! 🎉": "Herregni Keessan Milkaa'inaan Banameera! 🎉",
+  "Account Number": "Lakkoofsa Herregaa",
+  "Account Type": "Gosa Herregaa",
+  "Account holder": "Abbaa Herregaa",
+  "Answer": "Deebii",
+  "Assistant language": "Afaan Gargaaraa",
+  "Audio": "Sagalee",
+  "Birth City": "Magaalaa Dhaloota",
+  "Birth city": "Magaalaa dhaloota",
+  "Call ended": "Waamichi xumurameera",
+  "Call recording (video with both voices) saved:": "Waraabbiin waamicha (viidiyoo sagalee lamaan wajjin) olka'ameera:",
+  "Confirm": "Mirkaneessi",
+  "Confirm & Create": "Mirkaneessi & Banaa",
+  "Confirm your information": "Odeeffannoo keessan mirkaneessaa",
+  "Connecting…": "Walqabsiisaa jira…",
+  "Continue": "Itti fufaa",
+  "Create Account": "Herrega Banaa",
+  "Creating your account…": "Herrega keessan banaa jira…",
+  "Creating your bank account": "Herrega baankii keessan banaa jira",
+  "Data": "Odeeffannoo",
+  "Date of Birth": "Guyyaa Dhaloota",
+  "Decline": "Diduu",
+  "Demo Bank Super App": "Demo Bank Super App",
+  "Demo Bank · Account opening": "Baankii Deemoo · Herrega Banuu",
+  "Edit": "Sirreessi",
+  "FAN (National ID number)": "FAN (Lakkoofsa Waraqaa Eenyummaa)",
+  "Full Name": "Maqaa Guutuu",
+  "Full name": "Maqaa guutuu",
+  "Go to Home": "Gara Fuula Jalqabaa",
+  "Hana": "Haanaa",
+  "Hana is speaking": "Haanaan dubbataa jirti",
+  "Hana · Demo Bank": "Haanaa · Baankii Deemoo",
+  "Incoming video call": "Waamicha viidiyoo galu",
+  "Listening…": "Dhaggeeffadhaa jira…",
+  "Login": "Seenaa",
+  "Nationality": "Lammummaa",
+  "No sessions yet.": "Kooppii ykn seenaan ammaaf hin jiru.",
+  "Open your account in minutes": "Daqiiqaa muraasa keessatti herrega keessan banaa",
+  "Pick date": "Guyyaa filadhaa",
+  "Retrieving your details": "Odeeffannoo keessan fidaa jira",
+  "SMS (offline demo): your code is ": "SMS (deemoo toora ala): koodiin keessan",
+  "Saved Sessions": "Kooppiiwwan Olka'aman",
+  "Saved sessions": "Kooppiiwwan olka'aman",
+  "Saving the call recording…": "Waraabbii waamicha olka'aa jira…",
+  "Say \"yes\" if this is correct": "Yoo sirrii ta'e \"eeyyee\" jedhaa",
+  "Session saved on this phone:": "Waraabbiin bilbila kana irratti olka'ameera:",
+  "Setting up your profile": "Piroofayilii keessan qopheessaa jira",
+  "Speech recognition, voice and assistant run 100% on this phone.": "Dubbii barruutti jijjiiruun, sagaleen fi gargaaraan 100% bilbila kana irratti hojjetu.",
+  "Verify OTP": "Koodii OTP mirkaneessi",
+  "Verifying identity (National ID)": "Eenyummaa mirkaneessaa jira (Waraqaa Eenyummaa)",
+  "Video": "Viidiyoo",
+  "Video call · ": "Waamicha viidiyoo ·",
+  "View saved sessions": "Kooppii olka'ame ilaali",
+  "Welcome to": "Baga gara",
+  "Yes, let's start": "Eeyyee, haa jalqabnu",
+  "You're muted": "Sagaleen keessan cufameera",
+  "You: ": "Isin:",
+  "Your account is now active. You can start using it immediately.": "Herregni keessan amma hojii irra ooleera. Ammuma fayyadamuu dandeessu.",
+  "completed": "xumurameera",
+  "not finished": "hin xumuramne",
+  "with the AI Video Assistant – works offline": "Gargaaraa Viidiyoo AI wajjin – toora ala hojjeta"
+ },
+ "accountTypes": {
+  "SAVINGS": "Herrega Qusannoo",
+  "CURRENT": "Herrega Socho'aa",
+  "INTEREST_FREE": "Herrega Ribaa-Ala",
+  "YOUTH": "Herrega Qusannoo Dargaggoo"
+ },
+ "intents": {
+  "yes": [
+   "eeyyee",
+   "eeyyeen",
+   "tole",
+   "sirrii dha",
+   "haa jalqabnu",
+   "itti fufi",
+   "tole haa ta'u"
+  ],
+  "no": [
+   "lakki",
+   "lakkii",
+   "miti",
+   "sirrii miti",
+   "hin ta'u"
+  ],
+  "repeat": [
+   "irra deebi'i",
+   "irra deebii",
+   "hin dhaga'amne",
+   "maali jettan"
+  ],
+  "back": [
+   "duubatti deebi'i",
+   "dabraa",
+   "deebi'i"
+  ],
+  "cancel": [
+   "dhiasi",
+   "haqi",
+   "dhaabi",
+   "bilbila cufi"
+  ],
+  "question": [
+   "maali",
+   "maaliif",
+   "akkamitti",
+   "yoomi",
+   "eessa",
+   "hamam",
+   "danda'amaa",
+   "na barbaachisaa"
+  ]
+ },
+ "namePrefixes": [
+  "maqaan koo",
+  "maqaan koo guutuun",
+  "ani",
+  "maqaan koo jedhama"
+ ],
+ "nameSuffixes": [
+  "maqaa koo ti",
+  "galatoomaa",
+  "maaloo"
+ ],
+ "placeFillers": [
+  "kanin dhaladhe",
+  "magaalaa",
+  "naannoo",
+  "magaalaa dhaloota"
+ ],
+ "editKeys": {
+  "FULL_NAME": [
+   "maqaa",
+   "maqaa koo jijjiiri"
+  ],
+  "DOB": [
+   "guyyaa dhaloota",
+   "bara dhaloota"
+  ],
+  "BIRTH_CITY": [
+   "magaalaa",
+   "bakka dhaloota"
+  ],
+  "NATIONALITY": [
+   "lammummaa",
+   "biyya"
+  ],
+  "ACCOUNT_TYPE": [
+   "gosa herregaa"
+  ],
+  "FAN": [
+   "lakkoofsa fayda",
+   "lakkoofsa id"
+  ]
+ }
+}

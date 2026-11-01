@@ -285,7 +285,7 @@ private fun Controls(state: UiState, vm: AssistantViewModel) {
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(Icons.Default.Translate, "Language", tint = Color.White, modifier = Modifier.size(18.dp))
-                Text(if (state.lang == Lang.EN) "አማ" else "EN", fontSize = 10.sp, color = Color.White)
+                Text(Lang.entries[(state.lang.ordinal + 1) % Lang.entries.size].code.uppercase(), fontSize = 10.sp, color = Color.White)
             }
         }
     }

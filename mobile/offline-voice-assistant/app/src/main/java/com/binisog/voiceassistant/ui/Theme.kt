@@ -32,5 +32,9 @@ fun AppTheme(content: @Composable () -> Unit) {
     )
 }
 
-/** Inline bilingual UI text. */
-fun tr(lang: Lang, en: String, am: String) = if (lang == Lang.AM) am else en
+/** Inline UI text: English and Amharic written in place, other languages from their translation pack. */
+fun tr(lang: Lang, en: String, am: String) = when (lang) {
+    Lang.EN -> en
+    Lang.AM -> am
+    else -> lang.pack?.ui?.get(en) ?: en
+}

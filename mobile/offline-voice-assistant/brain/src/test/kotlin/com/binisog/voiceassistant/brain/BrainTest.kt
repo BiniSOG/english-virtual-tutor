@@ -72,7 +72,7 @@ class UnderstandingTest {
         assertEquals(Intent.YES, Understanding.intent("እሺ እንጀምር"))
         assertEquals(Intent.NO, Understanding.intent("no"))
         assertEquals(Intent.NO, Understanding.intent("አይ ትክክል አይደለም"))
-        assertEquals(Intent.SWITCH_TO_AM, Understanding.intent("በአማርኛ"))
+        assertEquals(Intent.SWITCH_LANGUAGE, Understanding.intent("በአማርኛ")); assertEquals(Lang.AM, Understanding.requestedLanguage("በአማርኛ"))
         assertEquals(Intent.QUESTION, Understanding.intent("why are you recording me?"))
         assertEquals(Intent.QUESTION, Understanding.intent("ለምን ትቀርጹኛላችሁ"))
         assertEquals(Intent.NONE, Understanding.intent("my name is Betelhem Tesfaye Alemu"))

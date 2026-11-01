@@ -9,7 +9,7 @@ package com.binisog.voiceassistant.brain
  */
 object Numbers {
 
-    private enum class Kind { NONE, UNIT, TEEN, TENS, HUNDRED, THOUSAND }
+    private enum class Kind { NONE, UNIT, TEEN, TENS, HUNDRED, THOUSAND, HUNDRED_AFTER, THOUSAND_AFTER }
 
     private data class Word(val value: Long, val kind: Kind)
 
@@ -51,8 +51,33 @@ object Numbers {
         p("መቶ", 100, Kind.HUNDRED); p("ሺ", 1000, Kind.THOUSAND); p("ሺህ", 1000, Kind.THOUSAND)
     }
 
+    /** Number words of the Oromo / Tigrinya / Afar packs, merged into the Amharic/Latin lexicon. */
+    private val packWords: Map<String, Word> by lazy {
+        buildMap {
+            for (p in Translations.packs.values) {
+                fun add(w: String, word: Word) {
+                    val k = AmharicText.normalize(w.lowercase().trim())
+                    if (k.isNotEmpty() && !containsKey(k) && english[k] == null) this[k] = word
+                }
+                p.units.forEachIndexed { i, w -> add(w, Word(i.toLong(), Kind.UNIT)) }
+                p.tens.forEachIndexed { i, w ->
+                    add(w, Word(10L * (i + 1), Kind.TENS))
+                    // Oromo links tens to the unit with -ii: "digdamii shan".
+                    if (!AmharicText.containsEthiopic(w) && w.endsWith("a")) add(w.dropLast(1) + "ii", Word(10L * (i + 1), Kind.TENS))
+                }
+                p.teenPrefix.split(' ').firstOrNull()?.let { if (it.isNotBlank()) add(it, Word(10, Kind.TENS)) }
+                add(p.hundred, Word(100, if (p.multiplierAfter) Kind.HUNDRED_AFTER else Kind.HUNDRED))
+                add(p.thousand, Word(1000, if (p.multiplierAfter) Kind.THOUSAND_AFTER else Kind.THOUSAND))
+            }
+        }
+    }
+
+    private val packFillers: Set<String> by lazy {
+        Translations.packs.values.mapNotNull { it.conjunction.trim().lowercase().takeIf { c -> c.isNotEmpty() } }.toSet()
+    }
+
     // Longest first so that greedy splitting of run-together words ("አስራአምስት") works.
-    private val amharicKeys = amharic.keys.sortedByDescending { it.length }
+    private val amharicKeys by lazy { (amharic.keys + packWords.keys.filter { AmharicText.containsEthiopic(it) }).sortedByDescending { it.length } }
 
     private val amharicSuffixes = listOf("ኛ", "ኛው", "ኛዉ", "ተኛ", "ቀን")
 
@@ -73,7 +98,7 @@ object Numbers {
         val out = mutableListOf<Word>()
         while (rest.isNotEmpty()) {
             val key = amharicKeys.firstOrNull { rest.startsWith(it) } ?: return null
-            out += amharic.getValue(key)
+            out += amharic[key] ?: packWords.getValue(key)
             rest = rest.substring(key.length)
         }
         return out.takeIf { it.isNotEmpty() }
@@ -99,9 +124,9 @@ object Numbers {
             for (part in parts) {
                 when {
                     part.all { it.isDigit() } -> out += Token.Digits(part)
-                    part == "and" || part == "እና" || part == "ና" -> out += Token.Filler
+                    part == "and" || part == "እና" || part == "ና" || part in packFillers -> out += Token.Filler
                     else -> {
-                        val en = englishWord(part)
+                        val en = englishWord(part) ?: packWords[part]?.takeIf { !AmharicText.containsEthiopic(part) }
                         if (en != null) {
                             out += Token.Num(en)
                         } else {
@@ -121,8 +146,15 @@ object Numbers {
         var total = 0L
         var cur = 0L
         var last = Kind.NONE
+        var pendingAfter = 0L // "dhibba" / "kuma" waiting for their multiplier ("dhibba lama" = 200)
+
+        fun applyPending(multiplier: Long) {
+            if (pendingAfter == 1000L) { total += multiplier * 1000; last = Kind.THOUSAND } else { cur += multiplier * 100; last = Kind.HUNDRED }
+            pendingAfter = 0
+        }
 
         fun flush() {
+            if (pendingAfter > 0) applyPending(1)
             if (last != Kind.NONE) result += (total + cur).toString()
             total = 0; cur = 0; last = Kind.NONE
         }
@@ -134,7 +166,23 @@ object Numbers {
                 Token.Other -> flush()
                 is Token.Num -> {
                     val w = t.w
+                    if (pendingAfter > 0) {
+                        if (w.kind == Kind.UNIT || w.kind == Kind.TEEN || w.kind == Kind.TENS) { applyPending(w.value); continue }
+                        applyPending(1)
+                    }
                     when (w.kind) {
+                        Kind.HUNDRED_AFTER, Kind.THOUSAND_AFTER -> {
+                            if (last == Kind.UNIT || last == Kind.TEEN || last == Kind.TENS) {
+                                // "... sagal dhibba" written in normal order: treat as a plain multiplier.
+                                if (w.kind == Kind.HUNDRED_AFTER) cur = (if (cur == 0L) 1 else cur) * 100
+                                else { total += (if (cur == 0L) 1 else cur) * 1000; cur = 0 }
+                                last = if (w.kind == Kind.HUNDRED_AFTER) Kind.HUNDRED else Kind.THOUSAND
+                            } else {
+                                if (last == Kind.NONE) last = Kind.HUNDRED
+                                pendingAfter = w.value
+                            }
+                            continue
+                        }
                         Kind.UNIT -> {
                             if (last !in setOf(Kind.NONE, Kind.TENS, Kind.HUNDRED, Kind.THOUSAND)) flush()
                             cur += w.value
@@ -173,7 +221,28 @@ object Numbers {
     private val amUnits = arrayOf("ዜሮ", "አንድ", "ሁለት", "ሶስት", "አራት", "አምስት", "ስድስት", "ሰባት", "ስምንት", "ዘጠኝ")
     private val amTens = arrayOf("", "አስር", "ሃያ", "ሰላሳ", "አርባ", "ሃምሳ", "ስልሳ", "ሰባ", "ሰማንያ", "ዘጠና")
 
-    fun toWords(n: Long, lang: Lang): String = if (lang == Lang.EN) english(n) else amharicWords(n)
+    fun toWords(n: Long, lang: Lang): String = when (lang) {
+        Lang.EN -> english(n)
+        Lang.AM -> amharicWords(n)
+        else -> lang.pack?.let { packWordsFor(n, it) } ?: amharicWords(n)
+    }
+
+    private fun packWordsFor(n: Long, p: Translations.Pack): String {
+        val joiner = if (p.conjunction.isBlank()) " " else " ${p.conjunction.trim()} "
+        fun mult(word: String, k: Long) = when {
+            k == 1L -> word
+            p.multiplierAfter -> "$word ${packWordsFor(k, p)}"
+            else -> "${packWordsFor(k, p)} $word"
+        }
+        return when {
+            n < 10 -> p.units[n.toInt()]
+            n < 20 -> if (n == 10L) p.tens[0] else "${p.teenPrefix.ifBlank { p.tens[0] }.trim()} ${p.units[(n - 10).toInt()]}"
+            n < 100 -> p.tens[(n / 10 - 1).toInt()] + if (n % 10 != 0L) " " + p.units[(n % 10).toInt()] else ""
+            n < 1000 -> mult(p.hundred, n / 100) + if (n % 100 != 0L) joiner + packWordsFor(n % 100, p) else ""
+            n < 1_000_000 -> mult(p.thousand, n / 1000) + if (n % 1000 != 0L) joiner + packWordsFor(n % 1000, p) else ""
+            else -> n.toString().map { p.units[it - '0'] }.joinToString(" ")
+        }
+    }
 
     private fun english(n: Long): String {
         if (n < 20) return enUnits[n.toInt()]
@@ -200,7 +269,13 @@ object Numbers {
 
     /** Reads a string of digits one by one ("1000" -> "one zero zero zero"). */
     fun spellDigits(s: String, lang: Lang): String =
-        s.filter { it.isDigit() }.map { if (lang == Lang.EN) enUnits[it - '0'] else amUnits[it - '0'] }.joinToString(" ")
+        s.filter { it.isDigit() }.map { d ->
+            when (lang) {
+                Lang.EN -> enUnits[d - '0']
+                Lang.AM -> amUnits[d - '0']
+                else -> lang.pack?.units?.get(d - '0') ?: amUnits[d - '0']
+            }
+        }.joinToString(" ")
 
     /**
      * Replaces every digit run in [text] with words so a character-based TTS voice can read it.

@@ -1,35 +1,50 @@
 package com.binisog.voiceassistant.brain
 
 /** Conversation-level intents that can be spoken at any step. */
-enum class Intent { YES, NO, REPEAT, BACK, CANCEL, SWITCH_TO_EN, SWITCH_TO_AM, QUESTION, NONE }
+enum class Intent { YES, NO, REPEAT, BACK, CANCEL, SWITCH_LANGUAGE, QUESTION, NONE }
 
 object Understanding {
 
     private fun c(list: List<String>) = list.map { AmharicText.canonical(it) }
+
+    /** Words from the Oromo / Tigrinya / Afar packs for an intent (accepted in any language). */
+    private fun extra(intent: String) = Translations.packs.values.flatMap { it.intents[intent].orEmpty() }
 
     private val yes = c(
         listOf(
             "yes", "yeah", "yep", "yup", "yah", "correct", "right", "that's right", "thats right", "sure",
             "ok", "okay", "confirm", "go ahead", "let's go", "lets go", "start", "of course", "exactly",
             "አዎ", "አዎን", "አዎ ትክክል", "እሺ", "ትክክል", "ትክክል ነው", "ልክ ነው", "ቀጥል", "ቀጥሉ", "እንጀምር", "ጀምር", "በትክክል",
-        )
+        ) + extra("yes")
     )
     private val no = c(
         listOf(
             "no", "nope", "nah", "wrong", "incorrect", "not correct", "that's wrong", "not right", "not yet",
             "አይ", "አይደለም", "አይደል", "ስህተት", "ልክ አይደለም", "ትክክል አይደለም", "ተሳስቷል", "ገና ነው", "አልፈልግም",
-        )
+        ) + extra("no")
     )
-    private val repeat = c(listOf("repeat", "say again", "say that again", "pardon", "come again", "ድገም", "ይድገሙ", "ይድገሙት", "እንደገና ይበሉ", "አልሰማሁም", "ደግመው"))
-    private val back = c(listOf("go back", "previous", "back", "ተመለስ", "ይመለሱ", "ወደ ኋላ", "ወደኋላ"))
-    private val cancel = c(listOf("cancel", "stop", "quit", "end call", "hang up", "ሰርዝ", "አቁም", "ያቁሙ", "ይቅር", "ጨርስ"))
-    private val toEn = c(listOf("english", "speak english", "in english", "እንግሊዝኛ", "በእንግሊዝኛ"))
-    private val toAm = c(listOf("amharic", "speak amharic", "in amharic", "አማርኛ", "በአማርኛ"))
+    private val repeat = c(listOf("repeat", "say again", "say that again", "pardon", "come again", "ድገም", "ይድገሙ", "ይድገሙት", "እንደገና ይበሉ", "አልሰማሁም", "ደግመው") + extra("repeat"))
+    private val back = c(listOf("go back", "previous", "back", "ተመለስ", "ይመለሱ", "ወደ ኋላ", "ወደኋላ") + extra("back"))
+    private val cancel = c(listOf("cancel", "stop", "quit", "end call", "hang up", "ሰርዝ", "አቁም", "ያቁሙ", "ይቅር", "ጨርስ") + extra("cancel"))
+    private val languageNames: Map<Lang, List<String>> = mapOf(
+        Lang.EN to c(listOf("english", "speak english", "in english", "እንግሊዝኛ", "በእንግሊዝኛ", "afaan ingilizii", "እንግሊዝኛ ተዛረቢ")),
+        Lang.AM to c(listOf("amharic", "speak amharic", "in amharic", "አማርኛ", "በአማርኛ", "afaan amaaraa", "ብኣምሓርኛ")),
+        Lang.OM to c(listOf("oromo", "oromiffa", "afaan oromoo", "afan oromo", "ኦሮምኛ", "በኦሮምኛ", "ኦሮሚኛ")),
+        Lang.TI to c(listOf("tigrinya", "tigrigna", "ትግርኛ", "በትግርኛ", "ብትግርኛ", "ትግሪኛ")),
+        Lang.AA to c(listOf("afar", "afar language", "qafar", "qafar af", "አፋርኛ", "በአፋርኛ", "ዓፋርኛ")),
+    ).mapValues { (lang, names) -> names + c(lang.pack?.languageNames.orEmpty()) }
+
+    /** "speak Oromo", "በትግርኛ", "Afaan Oromoo" -> the language asked for (short utterances only). */
+    fun requestedLanguage(raw: String): Lang? {
+        val t = AmharicText.canonical(raw)
+        if (t.isEmpty() || t.split(' ').size > 4) return null
+        return languageNames.entries.firstOrNull { (_, names) -> hasPhrase(t, names) }?.key
+    }
     private val questionWords = c(
         listOf(
             "what", "why", "how", "when", "where", "which", "who", "can i", "do i", "is it", "is my", "are you", "will",
             "ምን", "ምንድን", "ለምን", "እንዴት", "መቼ", "የት", "ስንት", "ማን", "ይቻላል", "ያስፈልጋል", "ነው ወይ", "ይሆናል",
-        )
+        ) + extra("question")
     )
 
     private fun hasPhrase(text: String, phrases: List<String>): Boolean {
@@ -43,8 +58,7 @@ object Understanding {
         if (t.isEmpty()) return Intent.NONE
         val words = t.split(' ').size
         if (hasPhrase(t, cancel) && words <= 4) return Intent.CANCEL
-        if (hasPhrase(t, toAm) && words <= 4) return Intent.SWITCH_TO_AM
-        if (hasPhrase(t, toEn) && words <= 4) return Intent.SWITCH_TO_EN
+        if (requestedLanguage(raw) != null) return Intent.SWITCH_LANGUAGE
         if (hasPhrase(t, repeat) && words <= 5) return Intent.REPEAT
         if (hasPhrase(t, back) && words <= 4) return Intent.BACK
         if (words <= 4) {
@@ -65,9 +79,9 @@ object Understanding {
             "my name is", "my full name is", "the name is", "name is", "i am", "i'm", "im", "it is", "it's", "its",
             "this is", "call me", "my name's",
             "ስሜ", "ሙሉ ስሜ", "እኔ", "ስሜ ደግሞ", "እኔ ስሜ",
-        )
+        ) + Translations.packs.values.flatMap { it.namePrefixes }
     ).sortedByDescending { it.length }
-    private val nameSuffixes = c(listOf("ነው", "እባላለሁ", "ይባላል", "ነኝ", "thank you", "thanks", "please", "አመሰግናለሁ")).sortedByDescending { it.length }
+    private val nameSuffixes = c(listOf("ነው", "እባላለሁ", "ይባላል", "ነኝ", "thank you", "thanks", "please", "አመሰግናለሁ") + Translations.packs.values.flatMap { it.nameSuffixes }).sortedByDescending { it.length }
 
     /** Strips "my name is" / "ስሜ ... ነው" and title-cases Latin names. */
     fun extractName(raw: String): String? {
@@ -91,7 +105,8 @@ object Understanding {
     // ------------------------------------------------------------------ places
 
     data class Place(val en: String, val am: String, val aliases: List<String> = emptyList()) {
-        fun display(lang: Lang) = if (lang == Lang.AM) am else en
+        /** Ge'ez-script languages show the Ge'ez name, Latin-script languages the Latin one. */
+        fun display(lang: Lang) = if (lang.ethiopic) am else en
         val forms: List<String> get() = (listOf(en, am) + aliases).map { AmharicText.canonical(it) }
     }
 
@@ -217,7 +232,7 @@ object Understanding {
         listOf(
             "i was born in", "born in", "i was born at", "in", "at", "the city of", "city", "the city is", "it is", "it's",
             "ተወለድኩት", "የተወለድኩት", "ተወለድኩ", "ነው", "ከተማ", "በ", "ውስጥ",
-        )
+        ) + Translations.packs.values.flatMap { it.placeFillers }
     ).sortedByDescending { it.length }
 
     /** City answer: a known city, otherwise the cleaned free text (small towns are fine). */
@@ -237,14 +252,29 @@ object Understanding {
         INTEREST_FREE("Interest-Free Account", "ከወለድ ነፃ ሂሳብ", listOf("interest free", "interest-free", "islamic", "wadiah", "ከወለድ ነፃ", "ከወለድ ነጻ", "ወለድ", "ነፃ", "ነጻ")),
         YOUTH("Youth Savings Account", "የወጣቶች ቁጠባ ሂሳብ", listOf("youth", "student", "ወጣት", "የወጣቶች", "ተማሪ"));
 
-        fun display(lang: Lang) = if (lang == Lang.AM) am else en
+        fun display(lang: Lang) = when (lang) {
+            Lang.EN -> en
+            Lang.AM -> am
+            else -> lang.pack?.accountTypes?.get(name) ?: en
+        }
+
+        /** Matching words, including the distinctive words of the translated names. */
+        val allKeys: List<String> by lazy {
+            val translated = Translations.packs.values.flatMap { pack ->
+                val names = entries.mapNotNull { pack.accountTypes[it.name] }
+                val generic = names.map { AmharicText.canonical(it).split(' ').toSet() }.reduceOrNull { a, b -> a intersect b }.orEmpty()
+                val mine = pack.accountTypes[name] ?: return@flatMap emptyList()
+                listOf(mine) + AmharicText.canonical(mine).split(' ').filter { it.length > 3 && it !in generic }
+            }
+            keys + translated
+        }
     }
 
     fun extractAccountType(raw: String): AccountType? {
         val t = " " + AmharicText.canonical(raw) + " "
         // Most specific first: "interest free savings" is interest-free, "youth savings" is youth.
         val order = listOf(AccountType.INTEREST_FREE, AccountType.YOUTH, AccountType.CURRENT, AccountType.SAVINGS)
-        return order.firstOrNull { type -> type.keys.map { AmharicText.canonical(it) }.any { k -> t.contains(" $k ") || (AmharicText.containsEthiopic(k) && t.contains(k)) } }
+        return order.firstOrNull { type -> type.allKeys.map { AmharicText.canonical(it) }.any { k -> t.contains(" $k ") || (AmharicText.containsEthiopic(k) && t.contains(k)) } }
     }
 
     // ------------------------------------------------------------------ review edits
@@ -258,10 +288,14 @@ object Understanding {
         Step.FULL_NAME to c(listOf("name", "full name", "ስም", "ስሜ", "ስሜን")),
     )
 
+    private val allEditKeys: List<Pair<Step, List<String>>> by lazy {
+        editKeys.map { (step, keys) -> step to keys + c(Translations.packs.values.flatMap { it.editKeys[step.name].orEmpty() }) }
+    }
+
     /** "change my name" / "ከተማውን ቀይር" -> the step to go back to. */
     fun fieldToEdit(raw: String): Step? {
         val t = " " + AmharicText.canonical(raw) + " "
-        return editKeys.firstOrNull { (_, keys) ->
+        return allEditKeys.firstOrNull { (_, keys) ->
             keys.any { k -> t.contains(" $k ") || (AmharicText.containsEthiopic(k) && k.length >= 2 && t.contains(k)) }
         }?.first
     }

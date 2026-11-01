@@ -22,7 +22,7 @@ object VoiceScript {
 
     /** Words used for matching: no punctuation, unified letter variants. */
     fun words(text: String): List<String> =
-        AmharicText.normalize(text.replace(punct, " ")).split(Regex("\\s+")).filter { it.isNotBlank() }
+        AmharicText.normalize(text.lowercase().replace(punct, " ")).split(Regex("\\s+")).filter { it.isNotBlank() }
 
     fun idFor(text: String): String {
         val key = words(text).joinToString(" ")
@@ -31,25 +31,41 @@ object VoiceScript {
     }
 
     /** Everything to record for Amharic, de-duplicated. */
-    fun amharicClips(config: AgentConfig = AgentConfig()): List<Clip> {
+    fun amharicClips(config: AgentConfig = AgentConfig()): List<Clip> = clips(Lang.AM, config)
+
+    /** Everything to record for [lang], de-duplicated: fixed sentences plus fill-in words. */
+    fun clips(lang: Lang, config: AgentConfig = AgentConfig()): List<Clip> {
+        val pack = lang.pack
+        val bank = pack?.bankName ?: if (lang == Lang.AM) config.bankNameAm else config.bankNameEn
+        val agent = pack?.agentName ?: if (lang == Lang.AM) config.agentNameAm else config.agentNameEn
         val texts = LinkedHashSet<String>()
         // Fixed parts of every line: split at the {placeholders}.
-        for (template in Prompts.allTemplates(Lang.AM)) {
+        for (template in Prompts.allTemplates(lang)) {
             // Bank and agent names never change, so record them inside their sentences.
-            val t = template.replace("{bank}", config.bankNameAm).replace("{agent}", config.agentNameAm)
+            val t = template.replace("{bank}", bank).replace("{agent}", agent)
             for (fragment in t.split(Regex("\\{[a-z]+\\}"))) addSentences(texts, fragment)
         }
-        for (e in Faq.entries) addSentences(texts, e.am)
+        Faq.entries.indices.forEach { i ->
+            val e = Faq.entries[i]
+            val answer = when (lang) { Lang.EN -> e.en; Lang.AM -> e.am; else -> pack?.faqAnswers?.getOrNull(i) ?: e.en }
+            addSentences(texts, answer)
+        }
         // Values that get filled in.
-        texts += config.bankNameAm
-        texts += config.agentNameAm
-        texts += EthiopianCalendar.monthsAm
-        for (n in 0..30) texts += Numbers.toWords(n.toLong(), Lang.AM)
-        for (n in listOf(40, 50, 60, 70, 80, 90)) texts += Numbers.toWords(n.toLong(), Lang.AM)
-        texts += listOf("መቶ", "ሺህ", "አስራ", "አንድ ሺህ", "ሁለት ሺህ")
-        for (c in Understanding.cities) texts += c.am
-        for (c in Understanding.countries) texts += c.am
-        for (a in Understanding.AccountType.entries) texts += a.am
+        texts += bank
+        texts += agent
+        for (m in 1..13) texts += DateParser.monthName(m, lang)
+        for (n in 0..30) texts += Numbers.toWords(n.toLong(), lang)
+        for (n in listOf(40, 50, 60, 70, 80, 90)) texts += Numbers.toWords(n.toLong(), lang)
+        if (pack != null) {
+            texts += pack.hundred; texts += pack.thousand
+            if (pack.teenPrefix.isNotBlank()) texts += pack.teenPrefix.trim()
+            if (pack.conjunction.isNotBlank()) texts += pack.conjunction.trim()
+        } else {
+            texts += listOf("መቶ", "ሺህ", "አስራ", "አንድ ሺህ", "ሁለት ሺህ")
+        }
+        for (c in Understanding.cities) texts += c.display(lang)
+        for (c in Understanding.countries) texts += c.display(lang)
+        for (a in Understanding.AccountType.entries) texts += a.display(lang)
         return texts.filter { words(it).isNotEmpty() }
             .distinctBy { words(it).joinToString(" ") }
             .map { Clip(idFor(it), it.trim()) }
@@ -57,7 +73,7 @@ object VoiceScript {
 
     /** Long lines are recorded sentence by sentence so they can be reused across variants. */
     private fun addSentences(out: MutableSet<String>, text: String) {
-        Regex("[^።?!፧]+[።?!፧]?").findAll(text).map { it.value.trim().trim('፣', ',', ' ') }
+        Regex("[^።?!፧.]+[።?!፧.]?").findAll(text).map { it.value.trim().trim('፣', ',', ' ') }
             .filter { words(it).isNotEmpty() }
             .forEach { out += it }
     }
@@ -100,12 +116,16 @@ object VoiceScript {
     }
 }
 
-/** Writes the Amharic recording script as JSON: `gradle :brain:exportVoiceScript`. */
+/** Writes the recording scripts as JSON: `gradle :brain:exportVoiceScript` -> <dir>/<code>.json */
 fun main(args: Array<String>) {
-    val out = File(args.firstOrNull() ?: "build/voice-script/am.json")
-    out.parentFile?.mkdirs()
-    val clips = VoiceScript.amharicClips()
+    val dir = File(args.firstOrNull() ?: "build/voice-script")
+    val target = if (dir.name.endsWith(".json")) dir.parentFile else dir
+    target.mkdirs()
     fun esc(s: String) = s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ")
-    out.writeText(clips.joinToString(",\n", "[\n", "\n]\n") { """  {"id": "${it.id}", "text": "${esc(it.text)}"}""" })
-    println("wrote ${clips.size} clips to $out")
+    for (lang in Lang.entries.filter { it != Lang.EN }) {
+        val clips = VoiceScript.clips(lang)
+        val out = File(target, "${lang.code}.json")
+        out.writeText(clips.joinToString(",\n", "[\n", "\n]\n") { """  {"id": "${it.id}", "text": "${esc(it.text)}"}""" })
+        println("wrote ${clips.size} clips to $out")
+    }
 }

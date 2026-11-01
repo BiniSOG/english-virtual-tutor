@@ -70,12 +70,12 @@ jobs:
           key: gemini-voice-${{ github.run_id }}
           restore-keys: gemini-voice-
 
-      - name: Pre-record the Amharic voice with Gemini (offline playback in the app)
+      - name: Pre-record the Amharic, Oromo, Tigrinya and Afar voice with Gemini (offline playback in the app)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           ./gradlew --no-daemon -q :brain:exportVoiceScript
-          python tools/prerecord_gemini.py brain/build/voice-script/am.json app/src/main/assets/voice/am voice-recordings
+          tools/record_all_voices.sh
 
       - name: Save Gemini voice recordings
         if: always()

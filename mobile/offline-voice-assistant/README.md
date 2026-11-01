@@ -1,6 +1,6 @@
 # Offline Voice Account Assistant (Android)
 
-An Android app that opens a bank account through a voice "video call" with an AI assistant. It runs **fully offline** and speaks **English and Amharic (አማርኛ)**. While the user answers, the **front camera records the session** for identity verification.
+An Android app that opens a bank account through a voice "video call" with an AI assistant. It runs **fully offline** and speaks **English, Amharic (አማርኛ), Afaan Oromoo, Tigrinya (ትግርኛ) and Afar (Qafar af)**. While the user answers, the **front camera records the session** for identity verification.
 
 It feels like a real phone call. Tapping *Create Account* makes the phone ring with an incoming video call from "Hana". You answer, and she greets you, listens, reads back what she understood ("Abebe Kebede Bekele, did I get that right?") and replies, all by voice. She uses your first name, varies her phrasing, and asks again if you go quiet. Subtitles and a keyboard are optional.
 
@@ -54,3 +54,17 @@ To change the bank name, edit `AgentConfig` in `brain/.../AccountOpeningAgent.kt
 - sherpa-onnx: Apache-2.0. Its Kotlin API files are copied unchanged into `app/src/main/java/com/k2fsa/sherpa/onnx`.
 - Omnilingual ASR: Apache-2.0. Zipformer (icefall): Apache-2.0. Silero VAD: MIT.
 - **MMS-TTS voices: CC-BY-NC-4.0, non-commercial use only.** Replace them before any commercial deployment.
+
+## Languages
+
+| Language | Understanding speech | Assistant's voice |
+|---|---|---|
+| English | Streaming Zipformer | Phone's offline female voice |
+| Amharic | Omnilingual ASR | Gemini recordings (female), offline voice for names |
+| Afaan Oromoo, Tigrinya, Afar | Omnilingual ASR (same model, no extra size) | Gemini recordings once recorded, otherwise an approximate voice (Amharic voice for Tigrinya, English voice for Oromo and Afar) |
+
+Texts for Oromo, Tigrinya and Afar are in `tools/i18n/<code>.json`. Gemini drafted them, so **a native speaker should review them**, especially Afar. After editing, run `python tools/i18n/gen_kotlin.py` to regenerate `Translations.kt`.
+
+### Recording the voice with Gemini
+
+`tools/record_all_voices.sh` records every phrase with Gemini TTS (`gemini-3.8-flash-tts`, voice "Kore"). It batches many lines per request, cuts the audio at the pauses, and checks each cut by transcribing it. Clips are cached in `voice-recordings/` and the build bundles them, so the app plays them offline. A free-tier key allows only about 10 speech requests per day, which records roughly one language a day. The `Record assistant voices (daily)` workflow continues where it stopped once it is on the default branch and the `GEMINI_API_KEY` secret is set. A paid key records everything in a few minutes.

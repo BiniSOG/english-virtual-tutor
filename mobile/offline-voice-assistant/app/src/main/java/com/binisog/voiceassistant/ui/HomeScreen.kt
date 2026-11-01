@@ -3,6 +3,7 @@ package com.binisog.voiceassistant.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -77,9 +78,13 @@ fun HomeScreen(
         Spacer(Modifier.height(16.dp))
 
         Text(tr(lang, "Assistant language", "የረዳቱ ቋንቋ"), color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = lang == Lang.EN, onClick = { onLanguage(Lang.EN) }, label = { Text("English") })
-            FilterChip(selected = lang == Lang.AM, onClick = { onLanguage(Lang.AM) }, label = { Text("አማርኛ") })
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            for (l in Lang.entries) {
+                FilterChip(selected = lang == l, onClick = { onLanguage(l) }, label = { Text(l.nativeName) })
+            }
         }
         Spacer(Modifier.height(20.dp))
 

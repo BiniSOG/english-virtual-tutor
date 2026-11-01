@@ -2,8 +2,15 @@ package com.binisog.voiceassistant.brain
 
 import java.time.LocalDate
 
-enum class Lang(val code: String) {
-    EN("en"), AM("am");
+enum class Lang(val code: String, val nativeName: String, val ethiopic: Boolean) {
+    EN("en", "English", false),
+    AM("am", "አማርኛ", true),
+    OM("om", "Afaan Oromoo", false),
+    TI("ti", "ትግርኛ", true),
+    AA("aa", "Qafar af", false);
+
+    /** Languages with a translation pack (everything except English and Amharic). */
+    val pack: Translations.Pack? get() = Translations.of(this)
 
     companion object {
         fun of(code: String?): Lang = entries.firstOrNull { it.code == code } ?: EN
@@ -73,6 +80,10 @@ object DateParser {
         listOf("ጳጉሜ", "ጳጉሜን", "pagume"),
     )
 
+    private val ethiopianMonthsAll: List<List<String>> by lazy {
+        ethiopianMonths.mapIndexed { i, names -> names + Translations.packs.values.mapNotNull { it.months.getOrNull(i) } }
+    }
+
     private fun findMonth(words: List<String>, table: List<List<String>>): Int? {
         for ((i, names) in table.withIndex()) {
             val forms = names.map { AmharicText.normalize(it) }
@@ -102,7 +113,7 @@ object DateParser {
         val words = canon.split(' ').filter { it.isNotEmpty() }
 
         val nums = combineYears(Numbers.chunks(text).map { it.toInt() })
-        val etMonth = findMonth(words, ethiopianMonths)
+        val etMonth = findMonth(words, ethiopianMonthsAll)
         val grMonth = if (etMonth == null) findMonth(words, gregorianMonths) else null
         val mentionsEc = ecMarkers.any { canon.contains(it) }
         val mentionsGc = gcMarkers.any { canon.contains(it) }
@@ -128,7 +139,8 @@ object DateParser {
             grMonth != null -> false
             mentionsEc -> true
             mentionsGc -> false
-            else -> lang == Lang.AM
+            // In Ethiopia people usually give their birth date in the Ethiopian calendar.
+            else -> lang != Lang.EN
         }
         val date = if (ethiopian) {
             EthiopianCalendar.toGregorian(year, month, day)
@@ -161,21 +173,24 @@ object DateParser {
 
     fun formatGregorian(d: LocalDate): String = "${enMonthNames[d.monthValue - 1].take(3)} ${d.dayOfMonth}, ${d.year}"
 
-    fun formatEthiopian(d: LocalDate): String {
+    /** Ethiopian-calendar month name in [lang] (Amharic names when the language has none). */
+    fun monthName(m: Int, lang: Lang): String = lang.pack?.months?.getOrNull(m - 1) ?: EthiopianCalendar.monthsAm[m - 1]
+
+    fun formatEthiopian(d: LocalDate, lang: Lang = Lang.AM): String {
         val (y, m, day) = EthiopianCalendar.fromGregorian(d)
-        return "${EthiopianCalendar.monthsAm[m - 1]} $day፣ $y ዓ.ም."
+        return if (lang.ethiopic) "${monthName(m, lang)} $day፣ $y ዓ.ም." else "${monthName(m, lang)} $day, $y (E.C.)"
     }
 
     /** Text for the screen: Amharic shows both calendars. */
     fun display(d: LocalDate, lang: Lang): String =
-        if (lang == Lang.AM) "${formatEthiopian(d)} (${formatGregorian(d)})" else formatGregorian(d)
+        if (lang == Lang.EN) formatGregorian(d) else "${formatEthiopian(d, lang)} (${formatGregorian(d)})"
 
     /** Text for the voice: no digits, no abbreviations. */
     fun speak(d: LocalDate, lang: Lang): String = if (lang == Lang.EN) {
         "${enMonthNames[d.monthValue - 1]} ${Numbers.toWords(d.dayOfMonth.toLong(), Lang.EN)}, ${speakYearEn(d.year)}"
     } else {
         val (y, m, day) = EthiopianCalendar.fromGregorian(d)
-        "${EthiopianCalendar.monthsAm[m - 1]} ${Numbers.toWords(day.toLong(), Lang.AM)}፣ ${Numbers.toWords(y.toLong(), Lang.AM)}"
+        "${monthName(m, lang)} ${Numbers.toWords(day.toLong(), lang)}${if (lang.ethiopic) "፣" else ","} ${Numbers.toWords(y.toLong(), lang)}"
     }
 
     private fun speakYearEn(y: Int): String =

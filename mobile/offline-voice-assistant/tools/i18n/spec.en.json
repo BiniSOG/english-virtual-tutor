@@ -1,0 +1,403 @@
+{
+ "prompts": {
+  "greeting": [
+   "Hi, this is {agent} from {bank}. Thanks for picking up! I'll help you open your account today, it only takes a few minutes. Just so you know, this video call is recorded for verification. Shall we start?",
+   "Hello, I'm {agent}, calling from {bank}. Thank you for taking the call. I can open your new account with you right now, it's quick. The call is recorded for your security. Ready to begin?"
+  ],
+  "notReady": [
+   "No problem, take your time. Just say yes when you're ready.",
+   "That's okay. Let me know when you're ready, just say yes."
+  ],
+  "askName": [
+   "Great! Let's start with your full name, please.",
+   "Wonderful. First, could you tell me your full name?",
+   "Okay! What's your full name, please?"
+  ],
+  "askDob": [
+   "Nice to meet you, {first}. And what's your date of birth?",
+   "Thank you, {first}. When were you born?",
+   "Lovely, {first}. Could you tell me your date of birth?"
+  ],
+  "askCity": [
+   "Got it. Which city were you born in?",
+   "Thanks. And where were you born? Which city?",
+   "Perfect. What's your city of birth?"
+  ],
+  "askNationality": [
+   "Okay. And your nationality?",
+   "Thank you. What's your nationality?"
+  ],
+  "askAccountType": [
+   "Great. What kind of account would you like? Savings, current, interest-free, or a youth savings account?",
+   "Okay. Which account suits you best: savings, current, interest-free, or youth savings?"
+  ],
+  "askFan": [
+   "Almost done. Now I just need to verify your identity. Could you read me your Fayda number, your FAN, slowly?",
+   "We're nearly there. For identity verification, please tell me your Fayda ID number, the FAN, digit by digit."
+  ],
+  "confirm": [
+   "{value}. Did I get that right?",
+   "Okay, {value}. Is that correct?",
+   "Just to confirm, {value}?",
+   "I heard {value}. Is that right?"
+  ],
+  "nameNeedsFull": [
+   "Could you give me your full name, with your father's name too?",
+   "Sorry, I need your full name, including your father's name."
+  ],
+  "dobFuture": [
+   "Hmm, that date hasn't happened yet. Could you tell me your date of birth again?"
+  ],
+  "dobUnderage": [
+   "I'm sorry, you need to be at least 18 to open an account on your own. A youth account can be opened at a branch with a parent or guardian."
+  ],
+  "fanPartial": [
+   "Okay, {digits}. Go on.",
+   "{digits}. Please continue."
+  ],
+  "fanLength": [
+   "Hmm, the FAN should have {n} digits, but I got {got}. Could you read it again from the start?"
+  ],
+  "otpSent": [
+   "Thank you. I've just sent a six-digit code to the phone number registered with your Fayda ID. What's the code?",
+   "Great. You should get a six-digit code by SMS now. Could you read it to me?"
+  ],
+  "otpWrong": [
+   "Hmm, that code doesn't match. Could you check it and read it again?",
+   "That doesn't seem to be the right code. Let's try once more."
+  ],
+  "otpOk": [
+   "Perfect, you're verified.",
+   "Thank you, that's verified."
+  ],
+  "review": [
+   "Here's everything I have. Please have a look at the screen. Shall I go ahead and open your account?",
+   "Okay, I've put your details on the screen. If everything looks right, just say yes and I'll open the account."
+  ],
+  "creating": [
+   "Great, I'm opening your account now. This will only take a moment.",
+   "Wonderful. Give me a second while I set everything up."
+  ],
+  "done": [
+   "All done, {first}! Your {type} is now open. Your account number is {account}. Congratulations, and welcome to {bank}!",
+   "Congratulations, {first}! Your {type} is ready. Your account number is {account}. Thank you for choosing {bank}!"
+  ],
+  "notUnderstood": [
+   "Sorry, I didn't quite catch that. {question}",
+   "Sorry, could you say that again? {question}",
+   "I'm sorry, the line wasn't clear. {question}"
+  ],
+  "langSwitched": [
+   "Sure, let's continue in English."
+  ],
+  "cancelled": [
+   "Okay, no problem. Thank you for your time, and have a lovely day. Goodbye!"
+  ],
+  "afterFaq": [
+   "So, back to your application. {question}",
+   "Okay! Now, {question}"
+  ],
+  "editing": [
+   "Sure, let's fix that. {question}",
+   "No problem. {question}"
+  ],
+  "silence": [
+   "Hello? Are you still there? {question}",
+   "I'm still here. {question}",
+   "Take your time. {question}"
+  ],
+  "reviewHint": [
+   "Just say yes to open the account, or tell me what to change, for example, change my name."
+  ],
+  "digitsSoFar": [
+   "{digits}. Go on.",
+   "Okay, {digits}. And the rest?"
+  ]
+ },
+ "faq": [
+  {
+   "keywords": [
+    "record",
+    "recording",
+    "video",
+    "camera",
+    "film",
+    "privacy",
+    "watching"
+   ],
+   "answer": "The front camera records this session so the bank can verify that you are really the person opening the account. The video stays on this phone."
+  },
+  {
+   "keywords": [
+    "document",
+    "documents",
+    "need",
+    "require",
+    "requirements",
+    "bring",
+    "id",
+    "photo",
+    "passport"
+   ],
+   "answer": "You only need your Fayda national ID number and the phone number registered with it. No paper documents are needed."
+  },
+  {
+   "keywords": [
+    "fan",
+    "fayda",
+    "national",
+    "number",
+    "where",
+    "find"
+   ],
+   "answer": "The FAN is the number printed on your Fayda national ID card or in the Fayda app. It is used to confirm your identity."
+  },
+  {
+   "keywords": [
+    "savings",
+    "current",
+    "difference",
+    "type",
+    "types",
+    "which",
+    "account",
+    "best"
+   ],
+   "answer": "A savings account earns interest and is good for saving money. A current account is for frequent payments and cheques. An interest-free account follows Islamic banking principles."
+  },
+  {
+   "keywords": [
+    "long",
+    "time",
+    "minutes",
+    "fast",
+    "quick",
+    "how long"
+   ],
+   "answer": "It usually takes about three minutes. Your account is active as soon as we finish."
+  },
+  {
+   "keywords": [
+    "deposit",
+    "minimum",
+    "money",
+    "fee",
+    "cost",
+    "charge",
+    "pay",
+    "balance"
+   ],
+   "answer": "Opening the account is free. Minimum balance and fees depend on the bank's current tariff, which a branch can confirm."
+  },
+  {
+   "keywords": [
+    "interest",
+    "rate",
+    "percent"
+   ],
+   "answer": "Interest rates follow the bank's published rates and National Bank of Ethiopia rules. Savings accounts earn at least the regulatory minimum rate."
+  },
+  {
+   "keywords": [
+    "otp",
+    "code",
+    "sms",
+    "receive",
+    "received",
+    "didn't",
+    "message"
+   ],
+   "answer": "The one-time code goes to the phone number registered with your Fayda ID. In this offline demo it is shown on the screen."
+  },
+  {
+   "keywords": [
+    "safe",
+    "secure",
+    "security",
+    "data",
+    "information",
+    "share",
+    "stored"
+   ],
+   "answer": "Everything is processed on this phone without internet. Nothing is sent anywhere during this demo."
+  },
+  {
+   "keywords": [
+    "who",
+    "you",
+    "robot",
+    "human",
+    "person",
+    "ai",
+    "real"
+   ],
+   "answer": "I'm an AI assistant that runs fully on this phone. I can help you open an account in English or Amharic."
+  },
+  {
+   "keywords": [
+    "card",
+    "atm",
+    "debit",
+    "mobile",
+    "banking",
+    "app"
+   ],
+   "answer": "After the account is created you can request an ATM card and activate mobile banking from the app."
+  }
+ ],
+ "ui": [
+  "6-digit code",
+  "AI Account Assistant",
+  "Account Created Successfully! 🎉",
+  "Account Number",
+  "Account Type",
+  "Account holder",
+  "Answer",
+  "Assistant language",
+  "Audio",
+  "Birth City",
+  "Birth city",
+  "Call ended",
+  "Call recording (video with both voices) saved:",
+  "Confirm",
+  "Confirm & Create",
+  "Confirm your information",
+  "Connecting…",
+  "Continue",
+  "Create Account",
+  "Creating your account…",
+  "Creating your bank account",
+  "Data",
+  "Date of Birth",
+  "Decline",
+  "Demo Bank Super App",
+  "Demo Bank · Account opening",
+  "Edit",
+  "FAN (National ID number)",
+  "Full Name",
+  "Full name",
+  "Go to Home",
+  "Hana",
+  "Hana is speaking",
+  "Hana · Demo Bank",
+  "Incoming video call",
+  "Listening…",
+  "Login",
+  "Nationality",
+  "No sessions yet.",
+  "Open your account in minutes",
+  "Pick date",
+  "Retrieving your details",
+  "SMS (offline demo): your code is ",
+  "Saved Sessions",
+  "Saved sessions",
+  "Saving the call recording…",
+  "Say \"yes\" if this is correct",
+  "Session saved on this phone:",
+  "Setting up your profile",
+  "Speech recognition, voice and assistant run 100% on this phone.",
+  "Verify OTP",
+  "Verifying identity (National ID)",
+  "Video",
+  "Video call · ",
+  "View saved sessions",
+  "Welcome to",
+  "Yes, let's start",
+  "You're muted",
+  "You: ",
+  "Your account is now active. You can start using it immediately.",
+  "completed",
+  "not finished",
+  "with the AI Video Assistant – works offline"
+ ],
+ "accountTypes": {
+  "SAVINGS": "Savings Account",
+  "CURRENT": "Current Account",
+  "INTEREST_FREE": "Interest-Free Account",
+  "YOUTH": "Youth Savings Account"
+ },
+ "intents": {
+  "yes": [
+   "yes",
+   "yeah",
+   "correct",
+   "that's right",
+   "okay",
+   "sure",
+   "let's start",
+   "go ahead"
+  ],
+  "no": [
+   "no",
+   "not correct",
+   "that's wrong",
+   "not yet"
+  ],
+  "repeat": [
+   "repeat",
+   "say that again",
+   "I didn't hear"
+  ],
+  "back": [
+   "go back",
+   "previous"
+  ],
+  "cancel": [
+   "cancel",
+   "stop",
+   "end the call"
+  ],
+  "question": [
+   "what",
+   "why",
+   "how",
+   "when",
+   "where",
+   "how much",
+   "is it possible",
+   "do I need"
+  ]
+ },
+ "namePrefixes": [
+  "my name is",
+  "my full name is",
+  "I am",
+  "I'm called"
+ ],
+ "nameSuffixes": [
+  "is my name",
+  "thank you",
+  "please"
+ ],
+ "placeFillers": [
+  "I was born in",
+  "born in",
+  "the city of",
+  "city"
+ ],
+ "editKeys": {
+  "FULL_NAME": [
+   "name",
+   "change my name"
+  ],
+  "DOB": [
+   "date of birth",
+   "birthday"
+  ],
+  "BIRTH_CITY": [
+   "city",
+   "place of birth"
+  ],
+  "NATIONALITY": [
+   "nationality",
+   "country"
+  ],
+  "ACCOUNT_TYPE": [
+   "account type"
+  ],
+  "FAN": [
+   "Fayda number",
+   "ID number"
+  ]
+ }
+}

@@ -36,3 +36,59 @@ class VoiceScriptTest {
         }
     }
 }
+
+class MultiLanguageTest {
+    @Test fun numbersInPackLanguages() {
+        assertEquals(listOf("200"), Numbers.chunks("dhibba lama"))
+        assertEquals(listOf("1992"), Numbers.chunks("kuma tokko fi dhibba sagal fi sagaltamii lama"))
+        assertEquals(listOf("15"), Numbers.chunks("kudha shan"))
+        assertEquals("123", Numbers.digits("tokko lama sadii"))
+        assertEquals(listOf("11"), Numbers.chunks("ዓሰርተ ሓደ"))
+        assertEquals("642", Numbers.digits("ሽዱሽተ ኣርባዕተ ክልተ"))
+        for (lang in listOf(Lang.OM, Lang.TI, Lang.AA)) {
+            for (n in listOf(7L, 15L, 42L, 300L, 1992L, 2016L)) {
+                val words = Numbers.toWords(n, lang)
+                assertEquals(listOf(n.toString()), Numbers.chunks(words), "$lang $n -> $words")
+            }
+        }
+    }
+
+    @Test fun conversationInEachLanguage() {
+        for (lang in listOf(Lang.OM, Lang.TI, Lang.AA)) {
+            val a = AccountOpeningAgent(initialLang = lang)
+            val g = a.start()
+            assertTrue(!g.display.contains("{"), g.display)
+            val yes = lang.pack!!.intents.getValue("yes").first()
+            a.onUtterance(yes)
+            assertEquals(Step.FULL_NAME, a.step, "$lang: '$yes' should mean yes")
+            a.onUtterance("Abebe Kebede Bekele")
+            assertEquals("Abebe Kebede Bekele", a.pendingValue, lang.name)
+            val next = a.onUtterance(yes)!!
+            assertEquals(Step.DOB, a.step)
+            assertTrue(next.display.contains("Abebe"), "$lang: ${next.display}")
+            println("$lang: ${next.display}")
+        }
+    }
+
+    @Test fun switchesLanguageByVoice() {
+        val a = AccountOpeningAgent(initialLang = Lang.EN)
+        a.start()
+        a.onUtterance("afaan oromoo")
+        assertEquals(Lang.OM, a.lang)
+        a.onUtterance("ትግርኛ")
+        assertEquals(Lang.TI, a.lang)
+        a.onUtterance("qafar af")
+        assertEquals(Lang.AA, a.lang)
+    }
+
+    @Test fun scriptsForEveryLanguage() {
+        for (lang in listOf(Lang.AM, Lang.OM, Lang.TI, Lang.AA)) {
+            val clips = VoiceScript.clips(lang)
+            println("$lang: ${clips.size} clips")
+            assertTrue(clips.size > 120, "$lang ${clips.size}")
+            assertTrue(clips.none { it.text.contains("{") })
+        }
+        // Amharic recordings made before must keep their ids.
+        assertTrue(VoiceScript.clips(Lang.AM).any { it.id == "30e39c6804f9" })
+    }
+}

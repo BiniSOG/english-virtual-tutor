@@ -117,7 +117,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     private fun loadModels(lang: Lang): Job {
         loadJob?.let { if (it.isActive) return it }
         val job = viewModelScope.launch {
-            _state.update { it.copy(modelsLoading = true, modelsMessage = if (lang == Lang.AM) "የአማርኛ ድምፅ ሞዴሎች እየተጫኑ ነው…" else "Loading offline voice models…") }
+            _state.update { it.copy(modelsLoading = true, modelsMessage = com.binisog.voiceassistant.ui.tr(lang, "Loading offline voice models…", "የድምፅ ሞዴሎች እየተጫኑ ነው…")) }
             try {
                 withContext(asrDispatcher) {
                     // Keep memory low on small phones: only one language's recogniser at a time.
@@ -132,7 +132,8 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
                 withContext(ttsDispatcher) {
-                    Lang.entries.filter { it != lang }.forEach { voice.releaseVoice(it) }
+                    val keep = voice.voicesNeededFor(lang)
+                    Lang.entries.filter { it !in keep }.forEach { voice.releaseVoice(it) }
                     voice.prepare(lang)
                 }
                 val missing = !recognizers.containsKey(lang)
@@ -358,7 +359,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
 
     fun switchLanguageInCall() {
         val a = agent ?: return
-        val target = if (a.lang == Lang.EN) Lang.AM else Lang.EN
+        val target = Lang.entries[(a.lang.ordinal + 1) % Lang.entries.size]
         selectLanguage(target)
         apply(a.setLanguage(target))
     }

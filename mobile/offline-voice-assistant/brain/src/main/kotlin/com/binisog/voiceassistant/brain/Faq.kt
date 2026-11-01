@@ -84,7 +84,9 @@ object Faq {
         var best: Entry? = null
         var bestScore = 0.0
         for (e in entries) {
-            val keys = (e.keysEn + e.keysAm).map { AmharicText.canonical(it) }
+            val idx = entries.indexOf(e)
+            val extra = Translations.packs.values.flatMap { it.faqKeywords.getOrNull(idx).orEmpty() }
+            val keys = (e.keysEn + e.keysAm + extra).map { AmharicText.canonical(it) }
             var hits = 0.0
             for (w in words) {
                 if (keys.any { k -> k == w }) hits += 1.0
@@ -95,6 +97,11 @@ object Faq {
         }
         val b = best ?: return null
         if (bestScore < 0.25) return null
-        return if (lang == Lang.AM) b.am else b.en
+        val i = entries.indexOf(b)
+        return when (lang) {
+            Lang.EN -> b.en
+            Lang.AM -> b.am
+            else -> lang.pack?.faqAnswers?.getOrNull(i) ?: b.en
+        }
     }
 }
