@@ -1,0 +1,29 @@
+name: Fetch avatar image
+
+# One-off helper: downloads the URL in mobile/offline-voice-assistant/tools/avatar-url.txt into
+# the app's assets and commits it (the export link is temporary, the committed image is not).
+on:
+  push:
+    paths:
+      - "mobile/offline-voice-assistant/tools/avatar-url.txt"
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and commit
+        run: |
+          dir=mobile/offline-voice-assistant
+          mkdir -p $dir/app/src/main/assets/avatar
+          curl -fL --retry 3 -o $dir/app/src/main/assets/avatar/agent.jpg "$(head -n1 $dir/tools/avatar-url.txt)"
+          file $dir/app/src/main/assets/avatar/agent.jpg
+          git rm -q $dir/tools/avatar-url.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add $dir/app/src/main/assets/avatar/agent.jpg
+          git commit -m "Add assistant avatar portrait (generated with Canva) [skip ci]"
+          git push
