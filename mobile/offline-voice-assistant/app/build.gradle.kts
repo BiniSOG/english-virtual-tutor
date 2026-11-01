@@ -17,6 +17,8 @@ android {
         ndk {
             // sherpa-onnx ships native libraries for these ABIs; covers practically all phones.
             abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+            // CI emulator smoke test runs on x86_64.
+            if (project.hasProperty("withX86")) abiFilters += "x86_64"
         }
     }
 

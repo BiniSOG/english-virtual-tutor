@@ -48,6 +48,7 @@ class MainActivity : ComponentActivity() {
                             onLanguage = vm::selectLanguage,
                             onCreateAccount = { if (hasPermissions()) vm.startCall() else launcher.launch(needed) },
                             onSessions = vm::showSessions,
+                            onDismissCrash = vm::dismissCrash,
                         )
                         Screen.CALL -> CallScreen(state, vm)
                         Screen.SESSIONS -> SessionsScreen(state.lang, vm)

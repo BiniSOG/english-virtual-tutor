@@ -51,6 +51,7 @@ fun HomeScreen(
     onLanguage: (Lang) -> Unit,
     onCreateAccount: () -> Unit,
     onSessions: () -> Unit,
+    onDismissCrash: () -> Unit = {},
 ) {
     val lang = state.lang
     Column(
@@ -121,6 +122,18 @@ fun HomeScreen(
         } else if (state.modelsMessage.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
             Text(state.modelsMessage, fontSize = 12.sp, color = Brand.Red)
+        }
+        state.lastCrash?.let { crash ->
+            Spacer(Modifier.height(12.dp))
+            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE))) {
+                Column(Modifier.padding(12.dp)) {
+                    Text("The app stopped last time. Please send this to the developer:", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Brand.Red)
+                    androidx.compose.foundation.text.selection.SelectionContainer {
+                        Text(crash.take(3000), fontSize = 10.sp, color = Brand.Ink, lineHeight = 12.sp)
+                    }
+                    androidx.compose.material3.TextButton(onClick = onDismissCrash) { Text("Dismiss") }
+                }
+            }
         }
         Spacer(Modifier.height(6.dp))
         Text(state.modelSummary, fontSize = 10.sp, color = Brand.Muted)

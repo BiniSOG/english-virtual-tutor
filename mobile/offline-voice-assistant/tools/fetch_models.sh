@@ -41,9 +41,13 @@ print(names[0]['browser_download_url'])
 lib_tar=$(fetch "$android_url")
 rm -rf "$CACHE/android-libs" && mkdir -p "$CACHE/android-libs"
 tar xjf "$lib_tar" -C "$CACHE/android-libs"
-for abi in arm64-v8a armeabi-v7a; do
+# x86_64 is only packaged into the emulator test build (-PwithX86=true), not the phone APK.
+for abi in arm64-v8a armeabi-v7a x86_64; do
   src=$(find "$CACHE/android-libs" -type d -name "$abi" | head -n1)
-  [ -n "$src" ] || { echo "no $abi libs in $lib_tar"; exit 1; }
+  if [ -z "$src" ]; then
+    [ "$abi" = x86_64 ] && { echo "no x86_64 libs (emulator test will rely on ARM translation)"; continue; }
+    echo "no $abi libs in $lib_tar"; exit 1
+  fi
   mkdir -p "$JNI/$abi"
   cp "$src"/*.so "$JNI/$abi/"
   ls -la "$JNI/$abi"

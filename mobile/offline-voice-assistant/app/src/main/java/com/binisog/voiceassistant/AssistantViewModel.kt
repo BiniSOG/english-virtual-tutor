@@ -59,6 +59,7 @@ data class UiState(
     val creatingProgress: Int = 0,
     val sessionDir: String? = null,
     val error: String? = null,
+    val lastCrash: String? = null,
 )
 
 class AssistantViewModel(app: Application) : AndroidViewModel(app) {
@@ -92,7 +93,8 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     val speakingLevel: Float get() = voice.level
 
     init {
-        _state.update { it.copy(modelSummary = catalog.summary()) }
+        val crash = AssistantApp.crashFile(app).takeIf { it.exists() }?.readText()
+        _state.update { it.copy(modelSummary = catalog.summary(), lastCrash = crash) }
         loadModels(Lang.EN)
     }
 
@@ -192,6 +194,11 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         }
         viewModelScope.launch(asrDispatcher) { recognizers[activeLang]?.reset() }
         _state.update { it.copy(micOn = false) }
+    }
+
+    fun dismissCrash() {
+        AssistantApp.crashFile(getApplication()).delete()
+        _state.update { it.copy(lastCrash = null) }
     }
 
     fun showSessions() = _state.update { it.copy(screen = Screen.SESSIONS) }
@@ -309,6 +316,10 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
             _state.update { it.copy(speaking = true, liveCaption = "") }
             try {
                 withContext(ttsDispatcher) { voice.speak(text, lang) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                Log.e(TAG, "speech output failed", e)
             } finally {
                 // A short tail so the end of our own voice isn't picked up by the microphone.
                 if (isActive) delay(250)

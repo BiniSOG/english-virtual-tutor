@@ -91,6 +91,14 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
     }
 
     private fun speakWithMms(voice: OfflineTts, text: String) {
+        try {
+            playMms(voice, text)
+        } catch (e: Throwable) {
+            Log.e(TAG, "MMS playback failed", e)
+        }
+    }
+
+    private fun playMms(voice: OfflineTts, text: String) {
         val rate = voice.sampleRate()
         val minBuf = AudioTrack.getMinBufferSize(rate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_FLOAT)
         val track = AudioTrack.Builder()
@@ -107,7 +115,7 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                     .build()
             )
-            .setBufferSizeInBytes(minBuf * 4)
+            .setBufferSizeInBytes(if (minBuf > 0) minBuf * 4 else rate)
             .setTransferMode(AudioTrack.MODE_STREAM)
             .build()
         track.play()
@@ -134,7 +142,7 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
         } catch (e: Throwable) {
             Log.e(TAG, "TTS failed", e)
         } finally {
-            track.stop()
+            runCatching { track.stop() }
             track.release()
         }
     }
