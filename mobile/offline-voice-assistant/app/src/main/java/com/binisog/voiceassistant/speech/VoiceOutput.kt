@@ -81,9 +81,11 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
      * without recordings yet: Ge'ez-script Tigrinya is read by the Amharic voice, Latin-script
      * Oromo and Afar by the English one.
      */
-    fun fallbackFor(lang: Lang): Lang = when (lang) {
-        Lang.EN, Lang.AM -> lang
-        else -> if (lang.ethiopic) Lang.AM else Lang.EN
+    fun fallbackFor(lang: Lang): Lang = when {
+        lang == Lang.EN || lang == Lang.AM -> lang
+        catalog.hasTts(lang) -> lang // the language's own bundled MMS voice
+        lang.ethiopic -> Lang.AM
+        else -> Lang.EN
     }
 
     private suspend fun ensureVoice(l: Lang) {
@@ -106,8 +108,8 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
         ensureVoice(fb)
         engineInUse[lang] = when {
             fb != lang -> "approximate: ${fb.nativeName} voice"
+            voices.containsKey(lang) -> "MMS ${lang.nativeName} + female voice shaping"
             systemVoice[lang] != null -> "phone voice " + systemVoice[lang]?.name
-            voices.containsKey(lang) -> "MMS + female voice shaping"
             else -> "none"
         }
     }
@@ -127,7 +129,7 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
                             tokens = "$dir/tokens.txt",
                             noiseScale = 0.6f,
                             noiseScaleW = 0.7f,
-                            lengthScale = if (lang == Lang.AM) 1.08f else 1.02f,
+                            lengthScale = if (lang == Lang.EN) 1.02f else 1.08f,
                         ),
                         numThreads = 2,
                     ),
@@ -151,7 +153,7 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
     suspend fun speak(text: String, lang: Lang) {
         stopRequested = false
         try {
-            if (hasRecorded(lang)) {
+            if (hasRecorded(lang) && mostlyRecorded(text, lang)) {
                 speakRecorded(text, lang)
                 return
             }
@@ -177,6 +179,16 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
     }
 
     // ------------------------------------------------------------------ Gemini recordings
+
+    /**
+     * True when recordings cover the reply except short gaps such as the customer's name. While
+     * a language is only partly recorded, whole sentences would be missing: then the reply is
+     * spoken entirely by the offline voice instead of a patchwork of two voices.
+     */
+    private fun mostlyRecorded(text: String, lang: Lang): Boolean {
+        val gaps = VoiceScript.plan(text, recordedFor(lang)).filterIsInstance<VoiceScript.Segment.Synth>()
+        return gaps.all { VoiceScript.words(it.text).size <= 4 }
+    }
 
     private fun loadClip(lang: Lang, id: String): Pcm? = synchronized(clipCache) { clipCache["${lang.code}/$id"] } ?: runCatching {
         val bytes = context.assets.open("voice/${lang.code}/$id.wav").use { it.readBytes() }

@@ -80,4 +80,20 @@ if [ ! -s "$ASSETS/tts-en/model.onnx" ]; then
   python3 tools/export_mms_tts.py --lang eng --language-name English --out "$ASSETS/tts-en"
 fi
 
+# Oromo, Tigrinya, Afar: try the MMS language codes in order (Oromo has several varieties).
+export_optional() { # <assets dir> <language name> <mms codes...>
+  local out="$ASSETS/$1" name="$2"; shift 2
+  [ -s "$out/model.onnx" ] && return 0
+  for code in "$@"; do
+    if python3 tools/export_mms_tts.py --lang "$code" --language-name "$name" --out "$out"; then
+      echo "$name voice: facebook/mms-tts-$code"; return 0
+    fi
+    rm -rf "$out"
+  done
+  echo "WARNING: no MMS voice found for $name"
+}
+export_optional tts-om "Oromo" gaz orm hae
+export_optional tts-ti "Tigrinya" tir
+export_optional tts-aa "Afar" aar
+
 du -sh "$ASSETS"/* "$JNI"/*

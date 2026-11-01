@@ -56,6 +56,9 @@ jobs:
             mobile/offline-voice-assistant/.models-cache
             mobile/offline-voice-assistant/app/src/main/assets/models/tts-am
             mobile/offline-voice-assistant/app/src/main/assets/models/tts-en
+            mobile/offline-voice-assistant/app/src/main/assets/models/tts-om
+            mobile/offline-voice-assistant/app/src/main/assets/models/tts-ti
+            mobile/offline-voice-assistant/app/src/main/assets/models/tts-aa
           key: models-v1-${{ hashFiles('mobile/offline-voice-assistant/tools/fetch_models.sh', 'mobile/offline-voice-assistant/tools/export_mms_tts.py') }}
 
       - name: Download / export offline models
