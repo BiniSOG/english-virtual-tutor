@@ -57,7 +57,7 @@ fun SessionsScreen(lang: Lang, vm: AssistantViewModel) {
         }
         LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(sessions) { dir ->
-                val video = File(dir, "video.mp4")
+                val video = File(dir, com.binisog.voiceassistant.session.SessionStore.CALL_VIDEO).takeIf { it.exists() } ?: File(dir, "video.mp4")
                 val audio = File(dir, "audio.wav")
                 val json = File(dir, "session.json")
                 val info = remember(dir) {

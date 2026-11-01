@@ -12,6 +12,7 @@ import com.binisog.voiceassistant.brain.Reply
 import com.binisog.voiceassistant.brain.Step
 import com.binisog.voiceassistant.brain.Understanding
 import com.binisog.voiceassistant.camera.CameraRecorder
+import com.binisog.voiceassistant.session.CallRecording
 import com.binisog.voiceassistant.session.SessionStore
 import com.binisog.voiceassistant.session.WavWriter
 import com.binisog.voiceassistant.speech.AsrEvent
@@ -36,7 +37,7 @@ import java.io.File
 import java.time.LocalDate
 import java.util.concurrent.Executors
 
-enum class Screen { HOME, CALL, SESSIONS }
+enum class Screen { HOME, RINGING, CALL, SESSIONS }
 
 data class UiState(
     val screen: Screen = Screen.HOME,
@@ -62,6 +63,11 @@ data class UiState(
     val lastCrash: String? = null,
     /** Keyboard/buttons fallback; the call is voice-only unless the user turns this on. */
     val typing: Boolean = false,
+    /** Subtitles of what the assistant says (off by default, like a normal call). */
+    val captions: Boolean = false,
+    val callStartedAt: Long = 0,
+    val savingVideo: Boolean = false,
+    val callVideo: String? = null,
 )
 
 class AssistantViewModel(app: Application) : AndroidViewModel(app) {
@@ -87,6 +93,9 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     private var speakJob: Job? = null
     private var loadJob: Job? = null
     private var silenceJob: Job? = null
+    private var callRecording: CallRecording? = null
+    private var ringer: android.media.Ringtone? = null
+    private var ringTimeout: Job? = null
     @Volatile private var lastActivity = System.currentTimeMillis()
     private var silentReprompts = 0
 
@@ -153,6 +162,47 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
 
     // ------------------------------------------------------------------ call lifecycle
 
+    // ------------------------------------------------------------------ incoming call
+
+    /** "Create account" rings the phone like a real incoming video call. */
+    fun requestCall() {
+        _state.update { it.copy(screen = Screen.RINGING) }
+        val ctx = getApplication<Application>()
+        runCatching {
+            val uri = android.media.RingtoneManager.getActualDefaultRingtoneUri(ctx, android.media.RingtoneManager.TYPE_RINGTONE)
+                ?: android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE)
+            ringer = android.media.RingtoneManager.getRingtone(ctx, uri)?.apply {
+                if (android.os.Build.VERSION.SDK_INT >= 28) isLooping = true
+                play()
+            }
+        }
+        runCatching {
+            val vib = ctx.getSystemService(android.os.Vibrator::class.java)
+            vib?.vibrate(android.os.VibrationEffect.createWaveform(longArrayOf(0, 600, 900), 0))
+        }
+        ringTimeout?.cancel()
+        ringTimeout = viewModelScope.launch { delay(45_000); declineCall() }
+    }
+
+    private fun stopRinging() {
+        ringTimeout?.cancel()
+        runCatching { ringer?.stop() }
+        ringer = null
+        runCatching { getApplication<Application>().getSystemService(android.os.Vibrator::class.java)?.cancel() }
+    }
+
+    fun acceptCall() {
+        stopRinging()
+        startCall()
+    }
+
+    fun declineCall() {
+        stopRinging()
+        _state.update { it.copy(screen = Screen.HOME) }
+    }
+
+    fun toggleCaptions() = _state.update { it.copy(captions = !it.captions) }
+
     fun startCall() {
         val lang = _state.value.lang
         activeLang = lang
@@ -160,12 +210,16 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         val dir = sessions.newSession()
         sessionDir = dir
         wav = WavWriter(File(dir, "audio.wav"), SAMPLE_RATE)
+        val rec = CallRecording(SAMPLE_RATE)
+        callRecording = rec
+        voice.onAgentAudio = { rec.onAgent(it) }
         val a = AccountOpeningAgent(initialLang = lang)
         agent = a
         _state.update {
             UiState(
                 screen = Screen.CALL, lang = lang, modelSummary = it.modelSummary,
                 modelsLoading = it.modelsLoading, modelsMessage = it.modelsMessage, sessionDir = dir.absolutePath,
+                callStartedAt = System.currentTimeMillis(), captions = it.captions,
             )
         }
         camera.start(File(dir, "video.mp4"))
@@ -180,20 +234,26 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
 
     fun endCall() {
         agent?.let { if (it.step != Step.DONE && it.step != Step.CANCELLED) apply(it.cancel(), speakIt = false) }
-        finishSession()
-        camera.unbind()
-        _state.update { it.copy(screen = Screen.HOME) }
-    }
-
-    private fun finishSession() {
-        silenceJob?.cancel()
         voice.stop()
         speakJob?.cancel()
+        _state.update { it.copy(screen = Screen.HOME) }
+        viewModelScope.launch {
+            finalizeRecording()
+            camera.unbind()
+        }
+    }
+
+    /**
+     * Ends the session: stops the microphone and camera, saves the answers, and builds
+     * call_recording.mp4 with both voices on the video.
+     */
+    private suspend fun finalizeRecording() {
+        silenceJob?.cancel()
         mic?.stop()
         mic = null
-        camera.stop()
         wav?.close()
         wav = null
+        voice.onAgentAudio = null
         val a = agent
         val dir = sessionDir
         if (a != null && dir != null) {
@@ -201,6 +261,16 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         }
         viewModelScope.launch(asrDispatcher) { recognizers[activeLang]?.reset() }
         _state.update { it.copy(micOn = false) }
+        val rec = callRecording ?: return
+        callRecording = null
+        camera.stopAndAwait()
+        if (dir == null) return
+        rec.videoStartedAtMs = camera.startedAtMs
+        _state.update { it.copy(savingVideo = true) }
+        val out = File(dir, SessionStore.CALL_VIDEO)
+        val ok = withContext(Dispatchers.IO) { rec.export(File(dir, "video.mp4"), File(dir, "audio.wav"), out) }
+        if (ok) File(dir, "video.mp4").delete()
+        _state.update { it.copy(savingVideo = false, callVideo = if (ok) out.absolutePath else null) }
     }
 
     fun dismissCrash() {
@@ -218,6 +288,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun onAudio(samples: FloatArray) {
         wav?.write(samples)
+        callRecording?.onMic(samples.size)
         // Half duplex: don't transcribe the assistant's own voice.
         if (speaking || muted) return
         viewModelScope.launch(asrDispatcher) {
@@ -314,7 +385,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         if (speakIt) speak(reply.speech, a.lang)
         when (a.step) {
             Step.CREATING -> runCreation(a)
-            Step.DONE -> { camera.stop(); finishSessionKeepScreen() }
+            Step.DONE -> finishSessionKeepScreen()
             Step.CANCELLED -> finishSessionKeepScreen()
             else -> Unit
         }
@@ -323,12 +394,8 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     private fun finishSessionKeepScreen() {
         silenceJob?.cancel()
         viewModelScope.launch {
-            speakJob?.join()
-            mic?.stop(); mic = null
-            wav?.close(); wav = null
-            val a = agent ?: return@launch
-            sessionDir?.let { dir -> runCatching { sessions.saveJson(dir, a.lang.code, a.profile, transcript, a.step == Step.DONE) } }
-            _state.update { it.copy(micOn = false) }
+            speakJob?.join()  // let the goodbye be recorded too
+            finalizeRecording()
         }
     }
 
@@ -369,7 +436,12 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     override fun onCleared() {
-        finishSession()
+        stopRinging()
+        silenceJob?.cancel()
+        voice.stop()
+        mic?.stop()
+        wav?.close()
+        camera.stop()
         camera.unbind()
         voice.release()
         recognizers.values.forEach { it.release() }

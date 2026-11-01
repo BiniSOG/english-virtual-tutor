@@ -177,9 +177,19 @@ class AgentTest {
         assertEquals(Step.REVIEW, a.step)
         assertEquals(Step.DOB, Understanding.fieldToEdit("change my date of birth"))
         assertEquals(Step.BIRTH_CITY, Understanding.fieldToEdit("the city is wrong"))
-        assertTrue(a.noResponse()!!.display.startsWith("እያዳመጥኩ"))
+        assertTrue(a.noResponse()!!.display.contains("አካውንቱን"))
         val sw = a.setLanguage(Lang.EN)
-        assertTrue(sw.display.startsWith("Okay"))
+        assertTrue(sw.display.contains("English"))
+    }
+
+    @Test fun soundsPersonal() {
+        val a = agent()
+        assertTrue(a.start().display.contains("Hana"))
+        a.onUtterance("yes")
+        a.onUtterance("my name is Abebe Kebede Bekele")
+        val next = a.onUtterance("yes")!!
+        assertTrue(next.display.contains("Abebe"), next.display)
+        assertTrue(!next.display.contains("{"), next.display)
     }
 
     @Test fun guards() {

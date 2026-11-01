@@ -29,6 +29,8 @@ sealed interface AgentEvent {
 data class AgentConfig(
     val bankNameEn: String = "Demo Bank",
     val bankNameAm: String = "ዴሞ ባንክ",
+    val agentNameEn: String = "Hana",
+    val agentNameAm: String = "ሐና",
     val fanLength: Int = 12,
     val otpLength: Int = 6,
     val minimumAge: Int = 18,
@@ -94,10 +96,8 @@ class AccountOpeningAgent(
             Intent.NO -> return onNo()
             Intent.QUESTION -> Faq.answer(text, lang)?.let { answer ->
                 if (step == Step.DONE) return remember(Reply(answer, Numbers.verbalize(answer, lang)))
-                val q = currentQuestion()
-                val follow = Prompts.get("afterFaq", lang, "question" to q.display)
-                val followSpeech = Prompts.get("afterFaq", lang, "question" to q.speech)
-                return remember(Reply("$answer\n\n$follow", Numbers.verbalize("$answer $followSpeech", lang)))
+                val follow = wrap("afterFaq", currentQuestion())
+                return remember(Reply("$answer\n\n${follow.display}", Numbers.verbalize("$answer ${follow.speech}", lang)))
             }
             Intent.NONE -> Unit
         }
@@ -127,10 +127,9 @@ class AccountOpeningAgent(
 
     fun setLanguage(newLang: Lang): Reply {
         lang = newLang
-        val switched = Prompts.get("langSwitched", lang)
-        if (step == Step.CANCELLED) return remember(Reply(switched, switched))
-        val q = currentQuestion()
-        return remember(Reply("$switched ${q.display}", "$switched ${q.speech}"))
+        val switched = sayRaw("langSwitched")
+        if (step == Step.CANCELLED) return remember(switched)
+        return remember(combine(switched, currentQuestion()))
     }
 
     /** Jump back to one field from the review screen; afterwards return to review. */
@@ -140,13 +139,7 @@ class AccountOpeningAgent(
         step = target
         pending = null
         digitBuffer = ""
-        val q = currentQuestion()
-        return remember(
-            Reply(
-                Prompts.get("editing", lang, "question" to q.display),
-                Prompts.get("editing", lang, "question" to q.speech)
-            )
-        )
+        return remember(wrap("editing", currentQuestion()))
     }
 
     fun startCreating(): Reply {
@@ -159,27 +152,19 @@ class AccountOpeningAgent(
         profile = profile.copy(accountNumber = number)
         step = Step.DONE
         val type = profile.accountType?.display(lang) ?: Understanding.AccountType.SAVINGS.display(lang)
-        val display = Prompts.get("done", lang, "type" to type, "account" to formatGroups(number))
-        val speech = Prompts.get("done", lang, "type" to type, "account" to Numbers.spellDigits(number, lang))
-        return remember(Reply(display, Numbers.verbalize(speech, lang), listOf(AgentEvent.AccountCreated(number))))
+        val r = sayRaw("done", "type" to type, "account" to formatGroups(number), spoken = mapOf("account" to Numbers.spellDigits(number, lang)))
+        return remember(r.copy(events = listOf(AgentEvent.AccountCreated(number))))
     }
 
     fun cancel(): Reply {
         step = Step.CANCELLED
-        val s = Prompts.get("cancelled", lang)
-        return remember(Reply(s, s, listOf(AgentEvent.SessionEnded)))
+        return remember(sayRaw("cancelled").copy(events = listOf(AgentEvent.SessionEnded)))
     }
 
     /** Nobody answered for a while: ask the current question again. */
     fun noResponse(): Reply? {
         if (step in setOf(Step.CREATING, Step.DONE, Step.CANCELLED)) return null
-        val q = currentQuestion()
-        return remember(
-            Reply(
-                Prompts.get("silence", lang, "question" to q.display),
-                Prompts.get("silence", lang, "question" to q.speech)
-            )
-        )
+        return remember(wrap("silence", currentQuestion()))
     }
 
     /** The question for the current step, as a reply (used for "repeat" and after side questions). */
@@ -323,9 +308,7 @@ class AccountOpeningAgent(
 
     private fun ask(p: Pending): Reply {
         pending = p
-        val display = Prompts.get("confirm", lang, "value" to p.display)
-        val speech = Prompts.get("confirm", lang, "value" to p.spoken)
-        return remember(Reply(display, Numbers.verbalize(speech, lang)))
+        return remember(sayRaw("confirm", "value" to p.display, spoken = mapOf("value" to p.spoken)))
     }
 
     private fun commit(): Reply {
@@ -358,21 +341,33 @@ class AccountOpeningAgent(
     }
 
     private fun notUnderstood(): Reply {
-        val q = currentQuestion()
-        return remember(
-            Reply(
-                Prompts.get("notUnderstood", lang, "question" to q.display),
-                Prompts.get("notUnderstood", lang, "question" to q.speech)
-            )
-        )
+        return remember(wrap("notUnderstood", currentQuestion()))
     }
 
     // ------------------------------------------------------------------ helpers
 
+    private val agentName get() = if (lang == Lang.AM) config.agentNameAm else config.agentNameEn
+
+    /** The customer's first name once we know it ("Abebe Kebede Bekele" -> "Abebe"). */
+    private val firstName: String? get() = profile.fullName?.trim()?.split(Regex("\\s+"))?.firstOrNull()?.takeIf { it.isNotBlank() }
+
+    /** One variant of [key], filled the same way for the screen and for the voice. */
     private fun sayRaw(key: String, vararg args: Pair<String, String>, spoken: Map<String, String> = emptyMap()): Reply {
-        val display = Prompts.get(key, lang, *args)
-        val spokenArgs = args.map { (k, v) -> k to (spoken[k] ?: v) }.toTypedArray()
-        return Reply(display, Numbers.verbalize(Prompts.get(key, lang, *spokenArgs), lang))
+        val t = Prompts.template(key, lang, random)
+        val base = buildList {
+            add("bank" to bank); add("agent" to agentName)
+            firstName?.let { add("first" to it) }
+        }
+        val display = Prompts.fill(t, *(base + args).toTypedArray())
+        val spokenArgs = args.map { (k, v) -> k to (spoken[k] ?: v) }
+        val speech = Prompts.fill(t, *(base + spokenArgs).toTypedArray())
+        return Reply(display, Numbers.verbalize(speech, lang))
+    }
+
+    /** A line that ends with the current question, e.g. "Sorry, I didn't catch that. {question}". */
+    private fun wrap(key: String, q: Reply): Reply {
+        val t = Prompts.template(key, lang, random)
+        return Reply(Prompts.fill(t, "question" to q.display), Prompts.fill(t, "question" to q.speech))
     }
 
     private fun say(key: String, vararg args: Pair<String, String>, spoken: Map<String, String> = emptyMap()): Reply =

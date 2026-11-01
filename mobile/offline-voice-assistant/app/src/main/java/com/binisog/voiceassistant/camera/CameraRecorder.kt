@@ -28,6 +28,12 @@ class CameraRecorder(private val context: Context) {
     private var pendingFile: File? = null
     var onStateChanged: (Boolean) -> Unit = {}
 
+    /** Wall-clock time of the first recorded frame (to line up the audio). */
+    @Volatile
+    var startedAtMs: Long = 0
+        private set
+    private var finalized: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+
     fun bind(owner: LifecycleOwner, previewView: PreviewView) {
         val future = ProcessCameraProvider.getInstance(context)
         future.addListener({
@@ -51,13 +57,20 @@ class CameraRecorder(private val context: Context) {
     fun start(file: File) {
         if (recording != null) return
         val capture = videoCapture ?: run { pendingFile = file; return }
+        startedAtMs = 0
+        val done = kotlinx.coroutines.CompletableDeferred<Unit>()
+        finalized = done
         recording = capture.output
             .prepareRecording(context, FileOutputOptions.Builder(file).build())
             .start(ContextCompat.getMainExecutor(context)) { event ->
                 when (event) {
-                    is VideoRecordEvent.Start -> onStateChanged(true)
+                    is VideoRecordEvent.Start -> {
+                        startedAtMs = System.currentTimeMillis()
+                        onStateChanged(true)
+                    }
                     is VideoRecordEvent.Finalize -> {
                         onStateChanged(false)
+                        done.complete(Unit)
                         if (event.hasError()) Log.w(TAG, "Recording finished with error ${event.error}")
                     }
                 }
@@ -68,6 +81,13 @@ class CameraRecorder(private val context: Context) {
         pendingFile = null
         recording?.stop()
         recording = null
+    }
+
+    /** Stops recording and waits until the mp4 file is complete. */
+    suspend fun stopAndAwait() {
+        val f = finalized
+        stop()
+        if (f != null) kotlinx.coroutines.withTimeoutOrNull(8000) { f.await() }
     }
 
     fun unbind() {

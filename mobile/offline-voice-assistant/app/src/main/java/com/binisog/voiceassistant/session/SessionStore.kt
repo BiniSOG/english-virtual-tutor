@@ -23,6 +23,11 @@ class SessionStore(private val context: Context) {
         return File(root, name).apply { mkdirs() }
     }
 
+    companion object {
+        /** Camera video with both voices mixed in (built when the call ends). */
+        const val CALL_VIDEO = "call_recording.mp4"
+    }
+
     fun list(): List<File> = root.listFiles { f -> f.isDirectory }?.sortedByDescending { it.name } ?: emptyList()
 
     fun saveJson(dir: File, lang: String, profile: Profile, transcript: List<Pair<String, String>>, completed: Boolean) {

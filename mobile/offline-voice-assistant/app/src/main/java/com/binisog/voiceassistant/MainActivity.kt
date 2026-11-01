@@ -20,6 +20,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.binisog.voiceassistant.ui.AppTheme
 import com.binisog.voiceassistant.ui.CallScreen
 import com.binisog.voiceassistant.ui.HomeScreen
+import com.binisog.voiceassistant.ui.IncomingCallScreen
 import com.binisog.voiceassistant.ui.SessionsScreen
 
 class MainActivity : ComponentActivity() {
@@ -35,20 +36,29 @@ class MainActivity : ComponentActivity() {
             AppTheme {
                 val state by vm.state.collectAsStateWithLifecycle()
                 val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
-                    if (result.values.all { it }) vm.startCall()
+                    if (result.values.all { it }) vm.acceptCall()
                     else Toast.makeText(this, "Camera and microphone permissions are required for the video assistant.", Toast.LENGTH_LONG).show()
                 }
                 BackHandler(enabled = state.screen != Screen.HOME) {
-                    if (state.screen == Screen.CALL) vm.endCall() else vm.goHome()
+                    when (state.screen) {
+                        Screen.CALL -> vm.endCall()
+                        Screen.RINGING -> vm.declineCall()
+                        else -> vm.goHome()
+                    }
                 }
                 Box(Modifier.fillMaxSize().statusBarsPadding()) {
                     when (state.screen) {
                         Screen.HOME -> HomeScreen(
                             state = state,
                             onLanguage = vm::selectLanguage,
-                            onCreateAccount = { if (hasPermissions()) vm.startCall() else launcher.launch(needed) },
+                            onCreateAccount = { vm.requestCall() },
                             onSessions = vm::showSessions,
                             onDismissCrash = vm::dismissCrash,
+                        )
+                        Screen.RINGING -> IncomingCallScreen(
+                            lang = state.lang,
+                            onAccept = { if (hasPermissions()) vm.acceptCall() else launcher.launch(needed) },
+                            onDecline = vm::declineCall,
                         )
                         Screen.CALL -> CallScreen(state, vm)
                         Screen.SESSIONS -> SessionsScreen(state.lang, vm)

@@ -102,11 +102,41 @@ def fail(msg):
     raise SystemExit(1)
 
 
-def run_call(lang_chip, create_label, listening_label, start_label, name_field, name):
+SESSIONS = f"/sdcard/Android/data/{PKG}/files/sessions"
+
+
+def check_recording(tag):
+    """The ended call must leave call_recording.mp4 with a video and an audio track."""
+    listing = adb("shell", "ls", "-R", SESSIONS, check=False)
+    print(listing)
+    latest = sorted(l.strip().rstrip(":") for l in listing.splitlines() if l.strip().startswith(SESSIONS + "/"))
+    if not latest:
+        fail("no session folder")
+    folder = latest[-1]
+    local = os.path.join(OUT, f"call_recording-{tag}.mp4")
+    for _ in range(20):
+        if "call_recording.mp4" in adb("shell", "ls", folder, check=False):
+            break
+        time.sleep(3)
+    else:
+        fail("call_recording.mp4 was not created")
+    adb("pull", f"{folder}/call_recording.mp4", local, timeout=120)
+    probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,codec_name,duration", "-of", "csv=p=0", local],
+                           capture_output=True, text=True)
+    print("ffprobe:", probe.stdout.strip(), probe.stderr.strip())
+    if probe.returncode == 0 and "audio" not in probe.stdout:
+        fail("call recording has no audio track")
+
+
+def run_call(lang_chip, create_label, answer_label, listening_label, start_label, name_field, name):
     adb("shell", "am", "start", "-W", "-n", f"{PKG}/.MainActivity")
     tap(lang_chip, 120)
     time.sleep(2)
     tap(create_label, 120)
+    # Incoming call screen: answer it like a phone call.
+    wait_for(answer_label, 30)
+    shot(f"ringing-{lang_chip}")
+    tap(answer_label, 30)
     # The whole multi-sentence greeting must be spoken before the app starts listening.
     wait_for(listening_label, 420)
     shot(f"listening-{lang_chip}")
@@ -130,7 +160,10 @@ def run_call(lang_chip, create_label, listening_label, start_label, name_field, 
         fail("crash while listening")
     shot(f"reprompt-{lang_chip}")
     adb("shell", "input", "keyevent", "4")  # back = end call
-    time.sleep(3)
+    time.sleep(8)
+    if not alive():
+        fail("crash after ending the call")
+    check_recording(lang_chip)
 
 
 adb("logcat", "-c", check=False)
@@ -139,8 +172,8 @@ adb("install", "-r", "-g", APK, timeout=900)
 for p in ("android.permission.CAMERA", "android.permission.RECORD_AUDIO"):
     adb("shell", "pm", "grant", PKG, p, check=False)
 
-run_call("English", "Create Account", "Listening", "Yes, let's start", "Full name", "Abebe Kebede Bekele")
-run_call("አማርኛ", "አካውንት ክፈት", "እያዳመጥኩ", "አዎ፣ እንጀምር", "ሙሉ ስም", "Abebe Kebede Bekele")
+run_call("English", "Create Account", "Answer", "Listening", "Yes, let's start", "Full name", "Abebe Kebede Bekele")
+run_call("አማርኛ", "አካውንት ክፈት", "መልስ", "እያዳመጠች", "አዎ፣ እንጀምር", "ሙሉ ስም", "Abebe Kebede Bekele")
 
 log = save_logcat()
 found = crashes(log)
