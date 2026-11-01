@@ -28,9 +28,9 @@ Lisan is a full-stack English learning platform and virtual teacher for Ethiopia
 
 **Admin (`/admin`)**
 - Overview KPIs: students, premium conversion, revenue, active users, AI usage, sign-ups, practice per skill.
-- Students: search and filter, grant or revoke premium (+30/90/365 days), change role or level, suspend, delete, view attempts and payments.
+- Students: search and filter, grant or revoke premium (+30/90/365 days), **reset passwords**, change role or level, suspend, delete, view attempts and payments.
 - Courses and lessons CRUD with Markdown preview, reordering, free-preview lessons, and an **AI lesson generator**.
-- Practices CRUD with a visual question builder and an **AI practice generator** for every skill and type.
+- Practices CRUD with a visual question builder, lesson linking and an **AI practice generator** for every skill and type.
 - Levels, subscription plans (ETB) and payments (with re-verify).
 
 ## Project structure
@@ -98,7 +98,9 @@ Set `PAYMENTS_MOCK=true` locally to simulate successful payments without Chapa.
 ### 3. Web project (`apps/web`)
 1. Import the same repo again → **Root Directory: `apps/web`** (Next.js is detected).
 2. Environment variable: `API_URL=https://<your-api>.vercel.app`
-3. Deploy. The browser calls `/api/*` on the web domain and Next.js rewrites those calls to the API, so there are no CORS or cookie problems.
+3. Optional: `NEXT_PUBLIC_SUPPORT_CONTACT` (shown on the login page for password help).
+4. Deploy. The browser calls `/api/*` on the web domain and Next.js rewrites those calls to the API, so there are no CORS or cookie problems. `API_URL` is read at **build time**, so redeploy the web project if the API URL changes.
+   If long AI requests (essay grading can take 15–30 s) ever time out through the rewrite, set `NEXT_PUBLIC_API_URL=https://<your-api>.vercel.app` so the browser calls the API directly (CORS is already configured through `CORS_ORIGINS`).
 
 ### 4. Chapa
 In the Chapa dashboard, set the webhook URL to `https://<your-api>.vercel.app/api/billing/chapa/webhook`. The checkout also sends a callback URL (`/api/billing/chapa/callback`) and a return URL (`/checkout/verify`). Premium is activated **only** after the Chapa verify API confirms the amount and currency, and activation is idempotent.
@@ -115,6 +117,9 @@ All routes are prefixed with `/api`. 🔓 = guests allowed, 👤 = signed in, �
 - 🛡️ `/admin/stats`, `/admin/users`, `/admin/levels`, `/admin/courses`, `/admin/lessons`, `/admin/practices`, `/admin/plans`, `/admin/payments`, `/admin/ai/generate-practice`, `/admin/ai/generate-lesson`
 
 ## Notes
+- **Password reset:** there is no email service yet, so a student who forgets their password asks support, and an admin sets a temporary one in *Admin → Students*. Adding an email provider (e.g. Resend) for self-service reset links is a natural next step.
+- AI output is validated and normalised on the server (bands clamped to 0–9, the four official criteria always present, bad quiz items dropped, letter answers mapped to options), so the UI never shows broken AI results.
+- AI quota is charged only when the AI call succeeds. Rate limiting is applied per signed-in user or per client IP (`X-Forwarded-For`), so traffic coming through the Vercel proxy isn't throttled as a single client.
 - Microphone access needs HTTPS (Vercel provides it) or `localhost`.
 - Live captions use the Web Speech API (Chrome, Edge, Android). On other browsers the recording is still sent to Gemini, so recognition works everywhere.
 - Requests to Vercel functions are limited to about 4.5 MB, so recordings are capped (90 s in the tutor, about 2.5 min in tests).

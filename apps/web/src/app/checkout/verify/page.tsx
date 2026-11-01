@@ -43,7 +43,11 @@ function Verify() {
 
   const content = () => {
     if (!txRef) return { icon: <XCircle className="h-14 w-14 text-rose-500" />, title: 'Missing payment reference', text: 'We could not find a payment to verify.' };
+    if (!authLoading && !user)
+      return { icon: <XCircle className="h-14 w-14 text-gold-500" />, title: 'Please sign in', text: 'Sign in with the account you paid with to confirm your payment.' };
     if (error) return { icon: <XCircle className="h-14 w-14 text-rose-500" />, title: 'Verification problem', text: error };
+    if (result?.status === 'PENDING' && tries >= 6)
+      return { icon: <Loader2 className="h-14 w-14 text-gold-500" />, title: 'Payment still processing', text: 'Chapa has not confirmed this payment yet. If you completed it, refresh this page in a minute — your Premium activates automatically once confirmed.' };
     if (!result || result.status === 'PENDING')
       return { icon: <Loader2 className="h-14 w-14 animate-spin text-brand-600" />, title: 'Confirming your payment…', text: 'This usually takes a few seconds. Please don’t close this page.' };
     if (result.status === 'SUCCESS')
@@ -65,6 +69,8 @@ function Verify() {
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           {result?.status === 'SUCCESS' ? (
             <Button href="/dashboard" size="lg"><Crown className="h-5 w-5" /> Go to my dashboard</Button>
+          ) : !authLoading && !user ? (
+            <Button href={`/login?next=${encodeURIComponent(`/checkout/verify?tx_ref=${txRef ?? ''}`)}`} size="lg">Sign in</Button>
           ) : result?.status === 'FAILED' || error ? (
             <Button href="/pricing" size="lg">Try again</Button>
           ) : null}

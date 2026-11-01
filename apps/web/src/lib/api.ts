@@ -59,6 +59,9 @@ export async function api<T = unknown>(path: string, opts: { method?: Method; bo
     const msg = Array.isArray(data?.message) ? data.message[0] : data?.message;
     throw new ApiError(msg || res.statusText || 'Something went wrong', res.status, data?.code);
   }
+  if (path.startsWith('/ai/') && (opts.method ?? (opts.body !== undefined ? 'POST' : 'GET')) === 'POST' && typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('lisan-ai-used'));
+  }
   return data as T;
 }
 

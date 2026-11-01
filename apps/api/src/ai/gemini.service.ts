@@ -1,4 +1,4 @@
-import { Injectable, Logger, ServiceUnavailableException, BadGatewayException } from '@nestjs/common';
+import { BadGatewayException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Part } from '@google/genai';
 import { parseJsonLoose } from '../common/json';
@@ -7,6 +7,8 @@ export interface ChatTurn {
   role: 'user' | 'model';
   text: string;
 }
+
+type Content = { role: 'user' | 'model'; parts: Part[] };
 
 @Injectable()
 export class GeminiService {
@@ -23,21 +25,37 @@ export class GeminiService {
     if (this.ai) return this.ai;
     const apiKey = this.config.get<string>('GEMINI_API_KEY');
     if (!apiKey) throw new ServiceUnavailableException('AI tutor is not configured (missing GEMINI_API_KEY)');
-    this.ai = new GoogleGenAI({ apiKey });
+    const baseUrl = this.config.get<string>('GEMINI_BASE_URL'); // optional: proxy / local mock for testing
+    this.ai = new GoogleGenAI({ apiKey, httpOptions: { timeout: 55_000, ...(baseUrl ? { baseUrl } : {}) } });
     return this.ai;
   }
 
   /** Single-turn request that must return JSON. `parts` may contain text and inline audio. */
-  async json<T>(opts: { system: string; parts: Part[]; temperature?: number }): Promise<T> {
-    return this.chatJson<T>({ system: opts.system, history: [], lastParts: opts.parts, temperature: opts.temperature });
+  async json<T>(opts: { system: string; parts: Part[]; temperature?: number; fast?: boolean }): Promise<T> {
+    return this.chatJson<T>({ ...opts, history: [], lastParts: opts.parts });
   }
 
-  /** Multi-turn request; the final user turn is `lastParts` (text and/or audio). */
-  async chatJson<T>(opts: { system: string; history: ChatTurn[]; lastParts: Part[]; temperature?: number }): Promise<T> {
-    const contents = [
-      ...opts.history.map((t) => ({ role: t.role, parts: [{ text: t.text }] })),
-      { role: 'user', parts: opts.lastParts },
-    ];
+  /**
+   * Multi-turn request; the final user turn is `lastParts` (text and/or audio).
+   * Gemini requires the conversation to start with a user turn and to alternate roles,
+   * so history is normalised before sending.
+   */
+  async chatJson<T>(opts: { system: string; history: ChatTurn[]; lastParts: Part[]; temperature?: number; fast?: boolean }): Promise<T> {
+    const contents: Content[] = [];
+    for (const t of opts.history) {
+      if (!t.text?.trim()) continue;
+      const last = contents[contents.length - 1];
+      if (last && last.role === t.role) last.parts.push({ text: t.text });
+      else contents.push({ role: t.role, parts: [{ text: t.text }] });
+    }
+    if (contents[0]?.role === 'model') contents.unshift({ role: 'user', parts: [{ text: '(The lesson begins.)' }] });
+    const last = contents[contents.length - 1];
+    if (last?.role === 'user') last.parts.push(...opts.lastParts);
+    else contents.push({ role: 'user', parts: opts.lastParts });
+
+    // Gemini 2.5 Flash models "think" by default; turn that off for snappy live conversation.
+    const thinking = opts.fast && /2\.5-flash/.test(this.model) ? { thinkingConfig: { thinkingBudget: 0 } } : {};
+
     let text: string | undefined;
     try {
       const res = await this.client().models.generateContent({
@@ -47,6 +65,7 @@ export class GeminiService {
           systemInstruction: opts.system,
           responseMimeType: 'application/json',
           temperature: opts.temperature ?? 0.4,
+          ...thinking,
         },
       });
       text = res.text;

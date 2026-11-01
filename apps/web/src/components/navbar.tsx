@@ -136,9 +136,24 @@ export function Navbar() {
             </Link>
           ))}
           {user ? (
-            <Link href="/dashboard" className="block rounded-xl px-3 py-2.5 font-medium text-slate-700">
-              My dashboard
-            </Link>
+            <>
+              <Link href="/dashboard" className="block rounded-xl px-3 py-2.5 font-medium text-slate-700">
+                My dashboard
+              </Link>
+              <Link href="/profile" className="block rounded-xl px-3 py-2.5 font-medium text-slate-700">
+                Profile & billing
+              </Link>
+              {user.role === 'ADMIN' && (
+                <Link href="/admin" className="block rounded-xl px-3 py-2.5 font-medium text-slate-700">
+                  Admin dashboard
+                </Link>
+              )}
+              {!user.isPremium && (
+                <Link href="/pricing" className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gold-400 to-gold-500 px-3 py-2.5 font-semibold text-slate-900">
+                  <Crown className="h-4 w-4" /> Go Premium
+                </Link>
+              )}
+            </>
           ) : (
             <Link href="/login" className="block rounded-xl px-3 py-2.5 font-medium text-slate-700">
               Sign in

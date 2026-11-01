@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { MessagesSquare, Mic, Shuffle } from 'lucide-react';
 import { SpeakingTask } from '@/components/speaking-task';
+import { QuotaBadge } from '@/components/quota-badge';
 import { Button, Chip, PageHeader } from '@/components/ui';
 import { VoiceTutor } from '@/components/voice-tutor';
 import { pick, SPEAKING_BANK } from '@/lib/question-bank';
@@ -21,6 +22,7 @@ export default function SpeakingPage() {
         eyebrow="Speaking studio"
         title="Speak English out loud — with AI that listens"
         text="Have a live voice conversation with Teacher Hana, or take an IELTS-style speaking test and get your band score with pronunciation coaching."
+        actions={<QuotaBadge />}
       />
       <div className="mt-6 inline-flex rounded-2xl bg-slate-100 p-1">
         {[

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AuthShell } from '@/components/auth/auth-shell';
 import { Button, Field, Input, Select } from '@/components/ui';
@@ -12,7 +12,8 @@ const LANGS = ['Amharic', 'Afaan Oromo', 'Tigrinya', 'Somali', 'Sidamo', 'Wolayt
 const BANDS = [5, 5.5, 6, 6.5, 7, 7.5, 8];
 
 function RegisterForm() {
-  const { register } = useAuth();
+  const { register, user, loading: authLoading } = useAuth();
+  const submitted = useRef(false);
   const router = useRouter();
   const params = useSearchParams();
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', nativeLanguage: 'Amharic', targetBand: 6.5 });
@@ -20,8 +21,14 @@ function RegisterForm() {
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: k === 'targetBand' ? Number(e.target.value) : e.target.value }));
 
+  // Already signed in when opening this page → skip registration (but never after submitting the form).
+  useEffect(() => {
+    if (!authLoading && user && !submitted.current) router.replace('/dashboard');
+  }, [authLoading, user, router]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    submitted.current = true;
     setLoading(true);
     try {
       await register({ ...form, phone: form.phone || undefined });
@@ -29,6 +36,7 @@ function RegisterForm() {
       const next = params.get('next');
       router.push(next && next.startsWith('/') ? next : '/tests?mode=LEVEL_CHECK&welcome=1');
     } catch (err) {
+      submitted.current = false;
       toast.error((err as Error).message);
     } finally {
       setLoading(false);

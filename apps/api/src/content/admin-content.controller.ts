@@ -76,6 +76,13 @@ export class AdminContentController {
   }
 
   // ---------- Lessons ----------
+  @Get('lessons')
+  lessons() {
+    return this.prisma.lesson.findMany({
+      orderBy: [{ course: { title: 'asc' } }, { order: 'asc' }],
+      select: { id: true, title: true, course: { select: { id: true, title: true } } },
+    });
+  }
   @Post('lessons')
   async createLesson(@Body() dto: CreateLessonDto) {
     const order = dto.order ?? (await this.prisma.lesson.count({ where: { courseId: dto.courseId } })) + 1;

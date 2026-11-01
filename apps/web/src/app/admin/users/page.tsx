@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Crown, Search, ShieldCheck, Trash2, UserX } from 'lucide-react';
+import { Crown, KeyRound, Search, ShieldCheck, Trash2, UserX } from 'lucide-react';
 import { Table, Td, Th } from '@/components/admin/table';
 import { useDebounced } from '@/components/filters';
-import { Badge, Button, Chip, EmptyState, ErrorBox, Modal, PageHeader, Select, Skeleton } from '@/components/ui';
+import { Badge, Button, Chip, EmptyState, ErrorBox, Input, Modal, PageHeader, Select, Skeleton } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useFetch } from '@/lib/hooks';
@@ -82,6 +82,13 @@ function UserModal({ id, onClose, onChanged }: { id: string; onClose: () => void
   const { data: u, setData, loading } = useFetch<AdminUser>(`/admin/users/${id}`);
   const { data: levels } = useFetch<Level[]>('/levels');
   const [busy, setBusy] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+
+  async function resetPassword() {
+    if (newPassword.length < 8) return toast.error('Password must be at least 8 characters');
+    await patch({ newPassword }, 'pw');
+    setNewPassword('');
+  }
 
   async function patch(body: Record<string, unknown>, label: string) {
     setBusy(label);
@@ -152,6 +159,15 @@ function UserModal({ id, onClose, onChanged }: { id: string; onClose: () => void
                 <option value="ADMIN">Admin</option>
               </Select>
             </label>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 p-4">
+            <p className="flex items-center gap-2 font-semibold text-slate-900"><KeyRound className="h-4 w-4" /> Reset password</p>
+            <p className="mt-0.5 text-xs text-slate-500">Set a temporary password and share it with the student securely. They can change it in Profile.</p>
+            <div className="mt-3 flex gap-2">
+              <Input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min 8 characters)" autoComplete="off" />
+              <Button variant="dark" loading={busy === 'pw'} onClick={resetPassword}>Set</Button>
+            </div>
           </div>
 
           {u.attempts && u.attempts.length > 0 && (

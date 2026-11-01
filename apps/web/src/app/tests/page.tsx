@@ -10,6 +10,7 @@ import { LevelBadge } from '@/components/cards';
 import { LoginGate } from '@/components/gates';
 import { Markdown } from '@/components/markdown';
 import { QuizForm, QuizResults } from '@/components/quiz';
+import { QuotaBadge } from '@/components/quota-badge';
 import { Button, Card, Field, Input, PageHeader, Select } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -142,7 +143,7 @@ function Tests() {
 
   return (
     <div className="container-page py-10">
-      <PageHeader eyebrow="AI tests" title="Unlimited tests, made for you" text="Gemini creates a brand-new IELTS-style test every time — at your level, on any topic you choose." />
+      <PageHeader eyebrow="AI tests" title="Unlimited tests, made for you" text="Gemini creates a brand-new IELTS-style test every time — at your level, on any topic you choose." actions={<QuotaBadge />} />
       {params.get('welcome') && (
         <Card className="mt-6 border-brand-200 bg-brand-50/60 p-5">
           <p className="font-semibold text-brand-900">👋 Welcome to Lisan! Start with a quick 15-question level check so we can recommend the right courses for you.</p>

@@ -32,6 +32,7 @@ export default function PracticeEditor({ params }: { params: Promise<{ id: strin
   const isNew = id === 'new';
   const router = useRouter();
   const { data: levels } = useFetch<Level[]>('/levels');
+  const { data: lessons } = useFetch<{ id: string; title: string; course: { title: string } }[]>('/admin/lessons');
   const { data: existing, loading } = useFetch<Practice>(isNew ? null : `/admin/practices/${id}`);
   const [d, setD] = useState<Draft>(EMPTY);
   const [saving, setSaving] = useState(false);
@@ -94,7 +95,7 @@ export default function PracticeEditor({ params }: { params: Promise<{ id: strin
       minWords: d.minWords === '' ? undefined : Number(d.minWords),
       passage: d.passage || undefined,
       prompt: d.prompt || undefined,
-      lessonId: d.lessonId || undefined,
+      lessonId: d.lessonId || null,
       questions: needsQuestions(d.type)
         ? d.questions.map((q, i) => ({
             id: `q${i + 1}`,
@@ -169,6 +170,12 @@ export default function PracticeEditor({ params }: { params: Promise<{ id: strin
         <Field label="Title" className="sm:col-span-2"><Input value={d.title} onChange={(e) => setD({ ...d, title: e.target.value })} /></Field>
         <Field label="Short description"><Input value={d.description} onChange={(e) => setD({ ...d, description: e.target.value })} /></Field>
         <Field label="Instructions for students"><Input value={d.instructions} onChange={(e) => setD({ ...d, instructions: e.target.value })} /></Field>
+        <Field label="Linked lesson (optional)" hint="Shown in the lesson's “Practise this lesson” panel">
+          <Select value={d.lessonId ?? ''} onChange={(e) => setD({ ...d, lessonId: e.target.value || null })}>
+            <option value="">— None —</option>
+            {lessons?.map((l) => <option key={l.id} value={l.id}>{l.course.title} › {l.title}</option>)}
+          </Select>
+        </Field>
         <Field label="Time limit (min)"><Input type="number" min={1} value={d.timeLimitMin} onChange={(e) => setD({ ...d, timeLimitMin: e.target.value === '' ? '' : Number(e.target.value) })} /></Field>
         {d.type === 'WRITING' && <Field label="Minimum words"><Input type="number" min={50} value={d.minWords} onChange={(e) => setD({ ...d, minWords: e.target.value === '' ? '' : Number(e.target.value) })} /></Field>}
         {needsPassage(d.type) && (

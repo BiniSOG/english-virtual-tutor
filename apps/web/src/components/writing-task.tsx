@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Clock, Loader2, Send } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -10,7 +11,6 @@ import type { WritingFeedback } from '@/lib/types';
 import { cn, wordCount } from '@/lib/utils';
 import { handleAiError } from './ai-error';
 import { WritingFeedbackView } from './feedback';
-import { LoginGate } from './gates';
 import { Markdown } from './markdown';
 import { Button, Card, Switch, Textarea } from './ui';
 
@@ -31,6 +31,7 @@ export function WritingTask({
 }) {
   const { user } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const storageKey = `lisan_draft_${draftKey ?? practiceId ?? 'free'}`;
   const [essay, setEssay] = useState('');
   const [amharic, setAmharic] = useState(false);
@@ -65,12 +66,20 @@ export function WritingTask({
     return () => clearInterval(t);
   }, [started, fb]);
 
-  if (!user) return <LoginGate title="Sign in to get your writing scored" text="The AI examiner grades your essay with official IELTS band descriptors and shows you how to improve." />;
-
   const words = wordCount(essay);
   const remaining = timeLimitMin * 60 - elapsed;
 
   async function submit() {
+    if (!user) {
+      try {
+        localStorage.setItem(storageKey, essay);
+      } catch {
+        /* ignore */
+      }
+      toast.info('Create a free account to get your band score — your essay is saved.');
+      router.push(`/register?next=${encodeURIComponent(pathname)}`);
+      return;
+    }
     setLoading(true);
     try {
       const res = await api<WritingFeedback>('/ai/writing/evaluate', {
@@ -118,8 +127,8 @@ export function WritingTask({
           />
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <Switch checked={amharic} onChange={setAmharic} label="Explain in Amharic" />
-            <Button onClick={submit} loading={loading} disabled={words < 30}>
-              <Send className="h-4 w-4" /> Grade my writing
+            <Button onClick={submit} loading={loading} disabled={words < 30} title={words < 30 ? 'Write at least 30 words first' : undefined}>
+              <Send className="h-4 w-4" /> {user ? 'Grade my writing' : 'Sign up to grade my writing'}
             </Button>
           </div>
           {loading && (

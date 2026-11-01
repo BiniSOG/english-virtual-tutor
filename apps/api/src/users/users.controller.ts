@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, Patch, Query } from '@nestjs/common';
 import { Prisma, Role, Skill } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
 import { computeIsPremium } from '../common/access';
 import { CurrentUser, Roles } from '../common/decorators';
 import { AuthUser } from '../common/types';
@@ -213,6 +214,7 @@ export class UsersController {
     if (dto.role) data.role = dto.role;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
     if (dto.name) data.name = dto.name;
+    if (dto.newPassword) data.passwordHash = await bcrypt.hash(dto.newPassword, 10);
     if (dto.levelId) data.level = { connect: { id: dto.levelId } };
     if (dto.premiumUntil !== undefined) data.premiumUntil = dto.premiumUntil ? new Date(dto.premiumUntil) : null;
     if (dto.grantPremiumDays !== undefined) {

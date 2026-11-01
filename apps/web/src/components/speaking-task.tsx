@@ -165,8 +165,8 @@ export function SpeakingTask({
               <Button variant="outline" onClick={() => { rec.reset(); sr.setTranscript(''); setFb(null); }} disabled={loading}>
                 <RotateCcw className="h-4 w-4" /> Record again
               </Button>
-              <Button onClick={submit} loading={loading}>
-                <Send className="h-4 w-4" /> Get my band score
+              <Button onClick={submit} loading={loading} disabled={!!fb}>
+                <Send className="h-4 w-4" /> {fb ? 'Scored ✓' : 'Get my band score'}
               </Button>
             </div>
             {loading && (

@@ -47,7 +47,12 @@ export function ListeningPlayer({ script, allowTranscript = true, title = 'Liste
         gender = speakers.indexOf(m[1]) % 2 === 0 ? 'female' : 'male';
         text = m[2];
       }
-      await speak(text, { rate, accent, gender });
+      // Chrome stops long utterances after ~15s, so speak sentence by sentence.
+      const chunks = text.match(/[^.!?]+[.!?]+["')\]]*\s*|[^.!?]+$/g) ?? [text];
+      for (const chunk of chunks) {
+        if (cancelled) break;
+        if (chunk.trim()) await speak(chunk.trim(), { rate, accent, gender });
+      }
     }
     window.removeEventListener('lisan-stop-audio', onCancel);
     setLine(-1);

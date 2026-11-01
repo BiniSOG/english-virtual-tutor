@@ -1,4 +1,4 @@
-import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, MinLength } from 'class-validator';
 import { Role } from '@prisma/client';
 
 export class AdminUpdateUserDto {
@@ -9,4 +9,6 @@ export class AdminUpdateUserDto {
   @IsOptional() @IsInt() grantPremiumDays?: number;
   @IsOptional() @IsString() levelId?: string;
   @IsOptional() @IsString() name?: string;
+  /** Admin-assisted password reset */
+  @IsOptional() @IsString() @MinLength(8) newPassword?: string;
 }

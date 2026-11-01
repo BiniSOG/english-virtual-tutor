@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { PenSquare, Shuffle } from 'lucide-react';
+import { QuotaBadge } from '@/components/quota-badge';
 import { Button, Chip, PageHeader, Textarea } from '@/components/ui';
 import { WritingTask } from '@/components/writing-task';
 import { pick, WRITING_BANK } from '@/lib/question-bank';
@@ -26,6 +27,7 @@ export default function WritingPage() {
         eyebrow="Writing studio"
         title="Your personal IELTS writing examiner"
         text="Write your answer and get an instant band score on all four criteria, corrections for every mistake and an improved version of your essay."
+        actions={<QuotaBadge />}
       />
       <div className="mt-6 flex flex-wrap items-center gap-2">
         {(Object.keys(META) as Task[]).map((t) => (

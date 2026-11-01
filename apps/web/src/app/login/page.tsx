@@ -2,22 +2,28 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AuthShell } from '@/components/auth/auth-shell';
 import { Button, Field, Input } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 
 function LoginForm() {
-  const { login } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
+  const submitted = useRef(false);
   const router = useRouter();
   const params = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (!authLoading && user && !submitted.current) router.replace(params.get('next')?.startsWith('/') ? params.get('next')! : user.role === 'ADMIN' ? '/admin' : '/dashboard');
+  }, [authLoading, user, router, params]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    submitted.current = true;
     setLoading(true);
     try {
       const user = await login(email, password);
@@ -25,6 +31,7 @@ function LoginForm() {
       const next = params.get('next');
       router.push(next && next.startsWith('/') ? next : user.role === 'ADMIN' ? '/admin' : '/dashboard');
     } catch (err) {
+      submitted.current = false;
       toast.error((err as Error).message);
     } finally {
       setLoading(false);
@@ -36,7 +43,7 @@ function LoginForm() {
       <Field label="Email">
         <Input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
       </Field>
-      <Field label="Password">
+      <Field label="Password" hint={`Forgot your password? ${process.env.NEXT_PUBLIC_SUPPORT_CONTACT ? `Contact ${process.env.NEXT_PUBLIC_SUPPORT_CONTACT}` : "Contact support"} and an admin will reset it for you.`}>
         <Input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
       </Field>
       <Button type="submit" className="w-full" size="lg" loading={loading}>

@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Part } from '@google/genai';
 import { Level, Prisma, PracticeType, Skill } from '@prisma/client';
 import { hasPremium } from '../common/access';
@@ -16,6 +16,7 @@ import {
 } from './ai.dto';
 import { GeminiService } from './gemini.service';
 import { amharicNote, IELTS_SPEAKING_RUBRIC, IELTS_WRITING_RUBRIC, TUTOR_PERSONA } from './prompts';
+import * as N from './normalize';
 import { QuotaService } from './quota.service';
 
 const json = (v: unknown) => v as Prisma.InputJsonValue;
@@ -95,7 +96,7 @@ export class AiService {
     const wordCount = dto.essay.trim().split(/\s+/).filter(Boolean).length;
     const taskType = dto.taskType ?? 'TASK_2';
 
-    const result = await this.gemini.json<WritingFeedback>({
+    const raw = await this.gemini.json<Partial<WritingFeedback>>({
       system: `${TUTOR_PERSONA}\n\n${IELTS_WRITING_RUBRIC}`,
       temperature: 0.2,
       parts: [
@@ -131,8 +132,22 @@ ${amharicNote(dto.explainInAmharic)}`,
       ],
     });
     await this.quota.record(user, 'writing');
-    result.wordCount = wordCount;
-    result.overallBand = this.overall(result.criteria, result.overallBand);
+    const result: WritingFeedback = {
+      wordCount,
+      criteria: N.criteria(raw.criteria, [
+        taskType === 'TASK_1' ? 'Task Achievement' : 'Task Response',
+        'Coherence & Cohesion',
+        'Lexical Resource',
+        'Grammatical Range & Accuracy',
+      ]),
+      overallBand: 0,
+      strengths: N.strings(raw.strengths),
+      improvements: N.strings(raw.improvements),
+      mistakes: N.fixes(raw.mistakes),
+      improvedVersion: N.str(raw.improvedVersion),
+      amharicSummary: dto.explainInAmharic ? N.str(raw.amharicSummary) || null : null,
+    };
+    result.overallBand = this.overall(result.criteria, raw.overallBand);
 
     const attempt = await this.prisma.attempt.create({
       data: {
@@ -163,7 +178,7 @@ ${amharicNote(dto.explainInAmharic)}`,
     }
     await this.quota.ensure(user);
 
-    const result = await this.gemini.json<SpeakingFeedback>({
+    const raw = await this.gemini.json<Partial<SpeakingFeedback>>({
       system: `${TUTOR_PERSONA}\n\n${IELTS_SPEAKING_RUBRIC}`,
       temperature: 0.2,
       parts: [
@@ -198,7 +213,20 @@ ${amharicNote(dto.explainInAmharic)}`,
       ],
     });
     await this.quota.record(user, 'speaking');
-    result.overallBand = this.overall(result.criteria, result.overallBand);
+    const result: SpeakingFeedback = {
+      transcript: N.str(raw.transcript),
+      criteria: N.criteria(raw.criteria, ['Fluency & Coherence', 'Lexical Resource', 'Grammatical Range & Accuracy', 'Pronunciation']),
+      overallBand: 0,
+      pronunciation: N.arr<Record<string, unknown>>(raw.pronunciation)
+        .map((p) => ({ word: N.str(p?.word), issue: N.str(p?.issue), tip: N.str(p?.tip) }))
+        .filter((p) => p.word),
+      grammarFixes: N.fixes(raw.grammarFixes),
+      strengths: N.strings(raw.strengths),
+      improvements: N.strings(raw.improvements),
+      modelAnswer: N.str(raw.modelAnswer),
+      amharicSummary: dto.explainInAmharic ? N.str(raw.amharicSummary) || null : null,
+    };
+    result.overallBand = this.overall(result.criteria, raw.overallBand);
 
     const attempt = await this.prisma.attempt.create({
       data: {
@@ -261,9 +289,18 @@ Return ONLY JSON:
       history: dto.history,
       lastParts: parts,
       temperature: 0.7,
+      fast: true,
     });
     await this.quota.record(user, 'chat');
-    return out;
+    return {
+      transcript: dto.audio ? N.str(out.transcript) || dto.message || '' : dto.message ?? '',
+      reply: N.str(out.reply) || 'Sorry, could you say that again?',
+      corrections: N.arr<Record<string, unknown>>(out.corrections)
+        .map((c) => ({ original: N.str(c?.original), corrected: N.str(c?.corrected ?? c?.correction), explanation: N.str(c?.explanation) }))
+        .filter((c) => c.original && c.corrected && c.original !== c.corrected),
+      pronunciationTip: N.str(out.pronunciationTip) || null,
+      amharicHelp: dto.explainInAmharic ? N.str(out.amharicHelp) || null : null,
+    };
   }
 
   // ---------------------------------------------------------------- AI generated tests
@@ -369,7 +406,7 @@ Return ONLY JSON:
   async adminGenerateLesson(dto: AdminGenerateLessonDto) {
     const course = await this.prisma.course.findUnique({ where: { id: dto.courseId }, include: { level: true } });
     if (!course) throw new NotFoundException('Course not found');
-    return this.gemini.json<{ title: string; summary: string; content: string; audioText: string | null; durationMin: number }>({
+    const g = await this.gemini.json<{ title: string; summary: string; content: string; audioText: string | null; durationMin: number }>({
       system: TUTOR_PERSONA,
       temperature: 0.6,
       parts: [
@@ -386,6 +423,13 @@ Return ONLY JSON: {"title": string, "summary": string (1 sentence), "content": s
         },
       ],
     });
+    return {
+      title: N.str(g.title),
+      summary: N.str(g.summary),
+      content: N.str(g.content),
+      audioText: N.str(g.audioText) || null,
+      durationMin: Math.max(1, Math.round(Number(g.durationMin) || 10)),
+    };
   }
 
   // ---------------------------------------------------------------- helpers
@@ -446,15 +490,25 @@ Return ONLY JSON:
         },
       ],
     });
-    set.questions = (set.questions ?? []).map((q, i) => ({
-      ...q,
-      id: `q${i + 1}`,
-      answer: Array.isArray(q.options) && q.options.length ? Number(q.answer) : String(q.answer),
-    }));
-    return set;
+    const normalized: GeneratedSet = {
+      title: N.str(set.title, 'Practice set') || 'Practice set',
+      description: N.str(set.description) || undefined,
+      instructions: N.str(set.instructions) || undefined,
+      passage: N.str(set.passage) || null,
+      prompt: N.str(set.prompt) || null,
+      questions: N.questions(set.questions),
+    };
+    const objective = type !== PracticeType.WRITING && type !== PracticeType.SPEAKING;
+    if (objective && normalized.questions.length === 0) {
+      throw new BadGatewayException('The AI could not create valid questions. Please try again.');
+    }
+    if ((type === PracticeType.READING || type === PracticeType.LISTENING) && !levelCheck && !normalized.passage) {
+      throw new BadGatewayException('The AI did not return a passage. Please try again.');
+    }
+    return normalized;
   }
 
-  private overall(criteria: Criterion[], fallback: number): number {
+  private overall(criteria: Criterion[], fallback: unknown): number {
     if (!Array.isArray(criteria) || criteria.length === 0) return roundHalf(Number(fallback) || 0);
     const avg = criteria.reduce((s, c) => s + (Number(c.band) || 0), 0) / criteria.length;
     // IELTS rounding: truncate to quarter band, then .25 -> .5 and .75 -> next whole band

@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Bot, Keyboard, Languages, Loader2, RotateCcw, Send, Sparkles, Volume2, VolumeX } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import type { Quota } from '@/lib/types';
 import { blobToBase64, cn } from '@/lib/utils';
 import { speak, stopSpeaking, useRecorder, useSpeechRecognition, type Accent } from '@/lib/voice';
 import { handleAiError } from './ai-error';
@@ -42,10 +42,9 @@ export function VoiceTutor() {
   const [typing, setTyping] = useState(false);
   const [text, setText] = useState('');
   const [thinking, setThinking] = useState(false);
-  const [quota, setQuota] = useState<Quota | null>(null);
   const rec = useRecorder(90);
   const sr = useSpeechRecognition();
-  const endRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -58,11 +57,8 @@ export function VoiceTutor() {
   }, [scenario, user?.id]);
 
   useEffect(() => {
-    if (user) api<Quota>('/ai/quota').then(setQuota).catch(() => undefined);
-  }, [user, messages.length]);
-
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [messages, thinking]);
 
   if (!user) return <LoginGate title="Sign in to talk with Teacher Hana" text="Have real spoken conversations with an AI tutor that listens to your voice and corrects you kindly." />;
@@ -98,7 +94,12 @@ export function VoiceTutor() {
     if (rec.state === 'recording') {
       sr.stop();
       const blob = await rec.stop();
-      if (!blob || blob.size < 1500) return;
+      if (!blob || blob.size < 1500 || rec.seconds < 1) {
+        rec.reset();
+        sr.setTranscript('');
+        toast.info('That was too short — hold on a moment longer and speak a full sentence.');
+        return;
+      }
       const audio = await blobToBase64(blob);
       const live = sr.transcript;
       rec.reset();
@@ -136,7 +137,7 @@ export function VoiceTutor() {
           </button>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50/50 p-4 sm:p-6">
+        <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto bg-slate-50/50 p-4 sm:p-6">
           {messages.map((m, i) => (
             <div key={i} className={cn('flex flex-col gap-2', m.role === 'user' ? 'items-end' : 'items-start')}>
               <div
@@ -178,7 +179,6 @@ export function VoiceTutor() {
               <Loader2 className="h-4 w-4 animate-spin" /> Teacher Hana is listening…
             </div>
           )}
-          <div ref={endRef} />
         </div>
 
         <div className="border-t border-slate-100 bg-white p-4">
@@ -250,17 +250,6 @@ export function VoiceTutor() {
           </div>
           <Switch checked={amharic} onChange={setAmharic} label="Help in Amharic" />
         </Card>
-        {quota && (
-          <Card className="p-5">
-            <p className="text-sm font-semibold text-slate-700">AI sessions today</p>
-            <p className="mt-1 text-2xl font-extrabold text-slate-900">
-              {quota.remaining} <span className="text-sm font-medium text-slate-500">of {quota.limit} left</span>
-            </p>
-            {!quota.isPremium && (
-              <Button href="/pricing" variant="gold" size="sm" className="mt-3 w-full">Get more with Premium</Button>
-            )}
-          </Card>
-        )}
         <Card className="p-5 text-sm text-slate-600">
           <p className="mb-2 font-semibold text-slate-900">Tips</p>
           <ul className="list-disc space-y-1 pl-4">
