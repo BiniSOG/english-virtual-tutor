@@ -307,10 +307,11 @@ def record_batch(batch):
         failed += len(batch)
         return
     pieces = split_batch(pcm, rate, texts)
-    if pieces is not None and len(batch) > 1:
+    if pieces is not None:
+        # Gemini sometimes adds words of its own, so every clip is checked by transcription.
         ok = verify(pieces, rate, texts)
         if ok is None:
-            ok = unambiguous(pcm, rate, len(batch))
+            ok = len(batch) == 1 or unambiguous(pcm, rate, len(batch))
         if not ok:
             pieces = None
     if pieces is None:

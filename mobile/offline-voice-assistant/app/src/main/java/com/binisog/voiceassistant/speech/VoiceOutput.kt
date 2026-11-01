@@ -84,6 +84,8 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
     fun fallbackFor(lang: Lang): Lang = when {
         lang == Lang.EN || lang == Lang.AM -> lang
         catalog.hasTts(lang) -> lang // the language's own bundled MMS voice
+        // No offline Afar voice exists; Afar's Latin spelling is close to Oromo's (q, x, c, dh).
+        lang == Lang.AA && catalog.hasTts(Lang.OM) -> Lang.OM
         lang.ethiopic -> Lang.AM
         else -> Lang.EN
     }

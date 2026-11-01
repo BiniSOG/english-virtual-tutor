@@ -105,22 +105,30 @@ def fail(msg):
 SESSIONS = f"/sdcard/Android/data/{PKG}/files/sessions"
 
 
+def app_shell(*cmd, check=False):
+    """Run as the app (debug build) – the shell user can't read Android/data on Android 11+."""
+    return adb("shell", "run-as", PKG, *cmd, check=check)
+
+
 def check_recording(tag):
     """The ended call must leave call_recording.mp4 with a video and an audio track."""
-    listing = adb("shell", "ls", "-R", SESSIONS, check=False)
-    print(listing)
-    latest = sorted(l.strip().rstrip(":") for l in listing.splitlines() if l.strip().startswith(SESSIONS + "/"))
-    if not latest:
+    listing = app_shell("ls", SESSIONS)
+    print("sessions:", listing.strip())
+    folders = sorted(l.strip() for l in listing.split() if l.strip())
+    if not folders:
         fail("no session folder")
-    folder = latest[-1]
-    local = os.path.join(OUT, f"call_recording-{tag}.mp4")
-    for _ in range(20):
-        if "call_recording.mp4" in adb("shell", "ls", folder, check=False):
+    folder = f"{SESSIONS}/{folders[-1]}"
+    for _ in range(25):
+        files = app_shell("ls", folder)
+        if "call_recording.mp4" in files:
             break
         time.sleep(3)
     else:
-        fail("call_recording.mp4 was not created")
-    adb("pull", f"{folder}/call_recording.mp4", local, timeout=120)
+        fail(f"call_recording.mp4 was not created ({files.strip()})")
+    local = os.path.join(OUT, f"call_recording-{tag}.mp4")
+    with open(local, "wb") as f:
+        f.write(subprocess.run(["adb", "exec-out", "run-as", PKG, "cat", f"{folder}/call_recording.mp4"],
+                               capture_output=True, timeout=120).stdout)
     probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,codec_name,duration", "-of", "csv=p=0", local],
                            capture_output=True, text=True)
     print("ffprobe:", probe.stdout.strip(), probe.stderr.strip())
