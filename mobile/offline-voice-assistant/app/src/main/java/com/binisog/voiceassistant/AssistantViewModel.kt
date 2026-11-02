@@ -271,6 +271,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         val out = File(dir, SessionStore.CALL_VIDEO)
         val ok = withContext(Dispatchers.IO) { rec.export(File(dir, "video.mp4"), File(dir, "audio.wav"), out) }
         if (ok) File(dir, "video.mp4").delete()
+        Log.i("CallRecording", "saved ok=$ok path=${out.absolutePath} size=${out.length()} video=${camera.startedAtMs > 0}")
         _state.update { it.copy(savingVideo = false, callVideo = if (ok) out.absolutePath else null) }
     }
 

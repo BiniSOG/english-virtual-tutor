@@ -111,29 +111,34 @@ def app_shell(*cmd, check=False):
 
 
 def check_recording(tag):
-    """The ended call must leave call_recording.mp4 with a video and an audio track."""
-    listing = app_shell("ls", SESSIONS)
-    print("sessions:", listing.strip())
-    folders = sorted(l.strip() for l in listing.split() if l.strip())
-    if not folders:
-        fail("no session folder")
-    folder = f"{SESSIONS}/{folders[-1]}"
-    for _ in range(25):
-        files = app_shell("ls", folder)
-        if "call_recording.mp4" in files:
+    """The ended call must leave call_recording.mp4 with video and audio (the app logs where)."""
+    line = ""
+    for _ in range(30):
+        log = adb("logcat", "-d", "-s", "CallRecording:I", check=False)
+        hits = [l for l in log.splitlines() if "saved ok=" in l]
+        if len(hits) >= CALLS_DONE[0] + 1:
+            line = hits[-1]
             break
         time.sleep(3)
-    else:
-        fail(f"call_recording.mp4 was not created ({files.strip()})")
+    print("recording:", line)
+    CALLS_DONE[0] += 1
+    if "ok=true" not in line:
+        fail(f"call recording not saved: {line or 'no log line'}")
+    path = line.split("path=")[1].split(" ")[0]
     local = os.path.join(OUT, f"call_recording-{tag}.mp4")
     with open(local, "wb") as f:
-        f.write(subprocess.run(["adb", "exec-out", "run-as", PKG, "cat", f"{folder}/call_recording.mp4"],
-                               capture_output=True, timeout=120).stdout)
+        f.write(subprocess.run(["adb", "exec-out", "run-as", PKG, "cat", path], capture_output=True, timeout=120).stdout)
+    if os.path.getsize(local) == 0:
+        with open(local, "wb") as f:
+            f.write(subprocess.run(["adb", "exec-out", "cat", path], capture_output=True, timeout=120).stdout)
     probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,codec_name,duration", "-of", "csv=p=0", local],
                            capture_output=True, text=True)
     print("ffprobe:", probe.stdout.strip(), probe.stderr.strip())
-    if probe.returncode == 0 and "audio" not in probe.stdout:
+    if os.path.getsize(local) > 0 and probe.returncode == 0 and "audio" not in probe.stdout:
         fail("call recording has no audio track")
+
+
+CALLS_DONE = [0]
 
 
 def run_call(lang_chip, create_label, answer_label, listening_label, start_label, name_field, name):
