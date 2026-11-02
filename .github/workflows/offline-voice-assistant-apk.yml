@@ -98,6 +98,15 @@ jobs:
           du -h build/out/*.apk >> $GITHUB_STEP_SUMMARY
           unzip -l build/out/offline-voice-assistant-arm64.apk | sort -k1 -n -r | head -15
 
+      - name: Check the APKs install (signature, ABI, minimum Android version)
+        run: |
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n1)
+          for apk in build/out/*.apk; do
+            echo "== $apk ($(du -h $apk | cut -f1))"
+            $BT/apksigner verify --print-certs "$apk" | head -3
+            $BT/aapt2 dump badging "$apk" | grep -E "^package:|sdkVersion|native-code" | head -4
+          done
+
       - uses: actions/upload-artifact@v4
         with:
           name: offline-voice-assistant-apk

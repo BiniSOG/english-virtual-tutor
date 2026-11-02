@@ -30,8 +30,15 @@ android {
     }
 
     signingConfigs {
-        // Test builds are signed with the debug key so the APK can be side-loaded directly.
-        getByName("debug")
+        // One fixed TEST key for every build, so a new APK installs over the previous one
+        // (CI machines would otherwise sign each build with a fresh random debug key, and
+        // Android refuses to update an app whose signature changed). Not for production.
+        create("test") {
+            storeFile = file("test-signing.jks")
+            storePassword = "testtest"
+            keyAlias = "test"
+            keyPassword = "testtest"
+        }
     }
 
     buildTypes {
@@ -40,7 +47,10 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("test")
+        }
+        debug {
+            signingConfig = signingConfigs.getByName("test")
         }
     }
 
