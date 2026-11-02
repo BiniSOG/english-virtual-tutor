@@ -204,9 +204,25 @@ VERIFY_MODEL = os.environ.get("GEMINI_VERIFY_MODEL", "gemini-3.5-flash")
 verify_available = True
 
 
+def ethiopic_normalize(t):
+    """Same idea as AmharicText.normalize in the app: letters that sound the same compare equal
+    (ሀ/ሐ/ኀ/ሃ, ሰ/ሠ, አ/ዐ/ኣ, ጸ/ፀ), so 'ሐና' and 'ሀና' are the same word."""
+    out = []
+    for ch in t:
+        o = ord(ch)
+        if 0x1200 <= o <= 0x137F:
+            row, order = o & 0xFFF8, o - (o & 0xFFF8)
+            row = {0x1210: 0x1200, 0x1280: 0x1200, 0x1220: 0x1230, 0x12D0: 0x12A0, 0x1340: 0x1338}.get(row, row)
+            if row in (0x1200, 0x12A0) and order == 3:
+                order = 0
+            ch = chr(row + order)
+        out.append(ch)
+    return "".join(out)
+
+
 def norm_words(t):
     import re
-    return re.sub(r"[^\w\s]", " ", t.lower()).split()
+    return re.sub(r"[^\w\s]", " ", ethiopic_normalize(t.lower())).split()
 
 
 def similar(a, b):
@@ -251,7 +267,9 @@ def verify(pieces, rate, texts):
     if len(heard) != len(texts):
         return False
     scores = [similar(h, t) for h, t in zip(heard, texts)]
-    bad = [(t, h, round(sc, 2)) for t, h, sc in zip(texts, heard, scores) if sc < 0.55]
+    # One-word clips (city names, numbers) are short: one vowel off is still the right word.
+    bad = [(t, h, round(sc, 2)) for t, h, sc in zip(texts, heard, scores)
+           if sc < (0.45 if len(norm_words(t)) <= 1 else 0.55)]
     for t, h, sc in bad:
         print(f"  mismatch {sc}: expected '{t}' heard '{h}'", flush=True)
     return not bad
