@@ -204,7 +204,33 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
 
     fun toggleCaptions() = _state.update { it.copy(captions = !it.captions) }
 
+    /** Like a real call: communication mode (echo cancellation) on the loudspeaker. */
+    private fun enterCallAudio(on: Boolean) {
+        val am = getApplication<Application>().getSystemService(android.media.AudioManager::class.java) ?: return
+        runCatching {
+            if (on) {
+                am.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+                if (android.os.Build.VERSION.SDK_INT >= 31) {
+                    am.availableCommunicationDevices.firstOrNull { it.type == android.media.AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+                        ?.let { am.setCommunicationDevice(it) }
+                } else {
+                    setSpeakerphone(am, true)
+                }
+            } else {
+                if (android.os.Build.VERSION.SDK_INT >= 31) am.clearCommunicationDevice()
+                else setSpeakerphone(am, false)
+                am.mode = android.media.AudioManager.MODE_NORMAL
+            }
+        }.onFailure { Log.w(TAG, "call audio routing", it) }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun setSpeakerphone(am: android.media.AudioManager, on: Boolean) {
+        am.isSpeakerphoneOn = on
+    }
+
     fun startCall() {
+        enterCallAudio(true)
         val lang = _state.value.lang
         activeLang = lang
         transcript.clear()
@@ -249,6 +275,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
      * call_recording.mp4 with both voices on the video.
      */
     private suspend fun finalizeRecording() {
+        enterCallAudio(false)
         silenceJob?.cancel()
         mic?.stop()
         mic = null
@@ -291,22 +318,64 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     private fun onAudio(samples: FloatArray) {
         wav?.write(samples)
         callRecording?.onMic(samples.size)
-        // Half duplex: don't transcribe the assistant's own voice.
-        if (speaking || muted) return
+        // Full duplex: keep listening while Hana talks, so the customer can answer or interrupt
+        // at any time. The phone's echo canceller removes most of her voice; [isEcho] the rest.
+        if (muted) return
         viewModelScope.launch(asrDispatcher) {
             val engine = recognizers[activeLang] ?: return@launch
-            if (resetAfterSpeech) { engine.reset(); resetAfterSpeech = false }
             val events = try { engine.accept(samples) } catch (e: Throwable) { Log.e(TAG, "asr", e); emptyList() }
             for (e in events) withContext(Dispatchers.Main) {
                 when (e) {
                     is AsrEvent.Partial -> {
+                        if (echoWindow() && isEcho(e.text)) return@withContext
                         lastActivity = System.currentTimeMillis()
                         _state.update { it.copy(liveCaption = e.text) }
+                        // Clearly the customer talking over Hana: let her stop right away.
+                        if (speaking && newWords(e.text) >= 2) bargeIn()
                     }
-                    is AsrEvent.Final -> onUserText(e.text, typed = false)
+                    is AsrEvent.Final -> {
+                        if (echoWindow() && isEcho(e.text)) {
+                            Log.i(TAG, "ignored echo: ${e.text}")
+                            _state.update { it.copy(liveCaption = "") }
+                            return@withContext
+                        }
+                        if (speaking) bargeIn()
+                        onUserText(e.text, typed = false)
+                    }
                 }
             }
         }
+    }
+
+    @Volatile private var speechEndedAt = 0L
+
+    /** While Hana talks and shortly after (recognition lags a little behind the audio). */
+    private fun echoWindow() = speaking || System.currentTimeMillis() - speechEndedAt < 1500
+
+    /** Text Hana is saying right now (to tell her own echo apart from the customer). */
+    @Volatile private var currentSpeech: Set<String> = emptySet()
+
+    private fun wordsOf(t: String) =
+        com.binisog.voiceassistant.brain.AmharicText.canonical(t).split(' ').filter { it.isNotBlank() }
+
+    /** Words heard that Hana is not saying. */
+    private fun newWords(heard: String) = wordsOf(heard).count { it !in currentSpeech }
+
+    /** Mostly Hana's own words coming back through the microphone. */
+    private fun isEcho(heard: String): Boolean {
+        val w = wordsOf(heard)
+        if (w.isEmpty()) return true
+        val overlap = w.count { it in currentSpeech }
+        return if (w.size == 1) false else overlap >= (w.size * 0.6)
+    }
+
+    /** The customer spoke while Hana was talking: she stops and listens, like a person would. */
+    private fun bargeIn() {
+        speechEndedAt = System.currentTimeMillis()
+        voice.stop()
+        speakJob?.cancel()
+        speaking = false
+        _state.update { it.copy(speaking = false) }
     }
 
     fun toggleTyping() = _state.update { it.copy(typing = !it.typing) }
@@ -342,7 +411,6 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
 
     fun onUserText(text: String, typed: Boolean) {
         val a = agent ?: return
-        if (speaking && !typed) return
         transcript += "user" to text
         silentReprompts = 0
         lastActivity = System.currentTimeMillis()
@@ -418,6 +486,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         voice.stop()
         speakJob = viewModelScope.launch {
             previous?.join()
+            currentSpeech = wordsOf(text).toSet()
             speaking = true
             _state.update { it.copy(speaking = true, liveCaption = "") }
             try {
@@ -432,6 +501,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                 if (isActive) delay(60)
                 resetAfterSpeech = true
                 lastActivity = System.currentTimeMillis()
+                speechEndedAt = System.currentTimeMillis()
                 speaking = false
                 _state.update { it.copy(speaking = false) }
             }

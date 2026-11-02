@@ -380,7 +380,8 @@ class VoiceOutput(private val context: Context, private val catalog: ModelCatalo
         val track = AudioTrack.Builder()
             .setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    // Voice-call stream: the echo canceller uses it as its reference signal.
+                    .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build()
             )
