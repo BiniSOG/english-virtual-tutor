@@ -1,6 +1,6 @@
 # Offline Voice Account Assistant (Android)
 
-An Android app that opens a bank account through a voice "video call" with an AI assistant. It runs **fully offline** and speaks **English, Amharic (አማርኛ), Afaan Oromoo, Tigrinya (ትግርኛ) and Afar (Qafar af)**. While the user answers, the **front camera records the session** for identity verification.
+An Android app that opens a bank account through a voice "video call" with an AI assistant. It runs **fully offline** and speaks **English and Amharic (አማርኛ)**. While the user answers, the **front camera records the session** for identity verification.
 
 It feels like a real phone call. Tapping *Create Account* makes the phone ring with an incoming video call from "Hana". You answer, and she greets you, listens, reads back what she understood ("Abebe Kebede Bekele, did I get that right?") and replies, all by voice. She uses your first name, varies her phrasing, and asks again if you go quiet. Subtitles and a keyboard are optional.
 
@@ -55,15 +55,11 @@ To change the bank name, edit `AgentConfig` in `brain/.../AccountOpeningAgent.kt
 - Omnilingual ASR: Apache-2.0. Zipformer (icefall): Apache-2.0. Silero VAD: MIT.
 - **MMS-TTS voices: CC-BY-NC-4.0, non-commercial use only.** Replace them before any commercial deployment.
 
-## Languages
+## Languages and size
 
-| Language | Understanding speech | Assistant's voice |
-|---|---|---|
-| English | Streaming Zipformer | Phone's offline female voice |
-| Amharic | Omnilingual ASR | Gemini recordings (female), offline voice for names |
-| Afaan Oromoo, Tigrinya, Afar | Omnilingual ASR (same model, no extra size) | Gemini recordings once recorded, otherwise an approximate voice (Amharic voice for Tigrinya, English voice for Oromo and Afar) |
+English and Amharic. To keep the app small, it ships as one APK per phone type: `offline-voice-assistant-arm64.apk` for practically every current phone, and `-32bit` for old phones. Unused code is stripped (R8), the Amharic voice uses 8-bit weights, there is no bundled English voice (the phone's own female voice is used), and the Gemini clips are stored at 16 kHz. The biggest remaining part is the Amharic speech recognizer (Omnilingual ASR 300M, about 350 MB). It is the only free offline model that recognises Amharic well.
 
-Texts for Oromo, Tigrinya and Afar are in `tools/i18n/<code>.json`. Gemini drafted them, so **a native speaker should review them**, especially Afar. After editing, run `python tools/i18n/gen_kotlin.py` to regenerate `Translations.kt`.
+Drafts for Oromo, Tigrinya and Afar are kept in `tools/i18n/` but are not enabled. To enable them, run `python tools/i18n/gen_kotlin.py om ti aa` and add the languages back to `Lang`.
 
 ### Recording the voice with Gemini
 

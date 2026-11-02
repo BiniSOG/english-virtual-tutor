@@ -41,6 +41,7 @@ def main():
     ap.add_argument("--lang", required=True, help="MMS ISO 639-3 code, e.g. amh, eng")
     ap.add_argument("--out", required=True)
     ap.add_argument("--language-name", default=None)
+    ap.add_argument("--int8", action="store_true", help="8-bit weights (about 4x smaller)")
     args = ap.parse_args()
 
     repo = f"facebook/mms-tts-{args.lang}"
@@ -101,11 +102,23 @@ def main():
         "n_speakers": str(max(1, int(model.config.num_speakers))),
         "punctuation": "",
     }
-    del m.metadata_props[:]
-    for k, v in meta.items():
-        p = m.metadata_props.add()
-        p.key, p.value = k, v
+    def stamp(model):
+        del model.metadata_props[:]
+        for k, v in meta.items():
+            p = model.metadata_props.add()
+            p.key, p.value = k, v
+
+    stamp(m)
     onnx.save(m, path)
+    if args.int8:
+        from onnxruntime.quantization import QuantType, quantize_dynamic
+
+        tmp = path + ".int8"
+        quantize_dynamic(path, tmp, weight_type=QuantType.QUInt8)
+        q = onnx.load(tmp)
+        stamp(q)  # keep the sherpa-onnx metadata on the quantized model
+        onnx.save(q, path)
+        os.remove(tmp)
 
     with open(os.path.join(args.out, "info.json"), "w") as f:
         json.dump({"romanized": romanized, "source": repo, "license": "CC-BY-NC-4.0"}, f)

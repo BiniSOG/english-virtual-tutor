@@ -12,7 +12,7 @@ CACHE=".models-cache"
 ASSETS="app/src/main/assets/models"
 JNI="app/src/main/jniLibs"
 REL="https://github.com/k2-fsa/sherpa-onnx/releases/download"
-mkdir -p "$CACHE" "$ASSETS"/{asr-en,asr-am,vad,tts-en,tts-am} "$JNI"
+mkdir -p "$CACHE" "$ASSETS"/{asr-en,asr-am,vad,tts-am} "$JNI"
 
 fetch() { # url -> cache file
   local url="$1" out="$CACHE/$(basename "$1")"
@@ -72,28 +72,11 @@ cp "$CACHE/$OMNI/tokens.txt" "$ASSETS/asr-am/tokens.txt"
 # ---- Voice activity detection ----
 cp "$(fetch "$REL/asr-models/silero_vad.onnx")" "$ASSETS/vad/silero_vad.onnx"
 
-# ---- Voices: Meta MMS VITS exported for sherpa-onnx ----
+# ---- Amharic voice: Meta MMS VITS exported for sherpa-onnx, 8-bit to keep the app small ----
+# (English is spoken by the phone's own offline voice, so no English model is bundled.)
 if [ ! -s "$ASSETS/tts-am/model.onnx" ]; then
-  python3 tools/export_mms_tts.py --lang amh --language-name Amharic --out "$ASSETS/tts-am"
+  python3 tools/export_mms_tts.py --lang amh --language-name Amharic --int8 --out "$ASSETS/tts-am"
 fi
-if [ ! -s "$ASSETS/tts-en/model.onnx" ]; then
-  python3 tools/export_mms_tts.py --lang eng --language-name English --out "$ASSETS/tts-en"
-fi
-
-# Oromo, Tigrinya, Afar: try the MMS language codes in order (Oromo has several varieties).
-export_optional() { # <assets dir> <language name> <mms codes...>
-  local out="$ASSETS/$1" name="$2"; shift 2
-  [ -s "$out/model.onnx" ] && return 0
-  for code in "$@"; do
-    if python3 tools/export_mms_tts.py --lang "$code" --language-name "$name" --out "$out"; then
-      echo "$name voice: facebook/mms-tts-$code"; return 0
-    fi
-    rm -rf "$out"
-  done
-  echo "WARNING: no MMS voice found for $name"
-}
-export_optional tts-om "Oromo" gaz orm hae
-export_optional tts-ti "Tigrinya" tir
-export_optional tts-aa "Afar" aar
+rm -rf "$ASSETS/tts-en"
 
 du -sh "$ASSETS"/* "$JNI"/*

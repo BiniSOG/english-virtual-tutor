@@ -336,6 +336,26 @@ if KEY:
             break
         record_batch(todo[i:i + BATCH])
 
+APP_RATE = 16000  # the app plays clips at 16 kHz: a third smaller than Gemini's 24 kHz
+
+
+def to_app_wav(src, dst):
+    with wave.open(src) as w:
+        rate, pcm = w.getframerate(), w.readframes(w.getnframes())
+    if rate != APP_RATE:
+        try:
+            import numpy as np
+            x = np.frombuffer(pcm, dtype=np.int16).astype(np.float32)
+            # light low-pass before decimating
+            x = np.convolve(x, np.array([0.25, 0.5, 0.25], dtype=np.float32), mode="same")
+            n = int(len(x) * APP_RATE / rate)
+            y = np.interp(np.linspace(0, len(x) - 1, n), np.arange(len(x)), x)
+            pcm, rate = np.clip(y, -32768, 32767).astype(np.int16).tobytes(), APP_RATE
+        except ImportError:
+            pass
+    save_wav(dst, pcm, rate)
+
+
 # Copy everything we have into the app.
 shutil.rmtree(out_dir, ignore_errors=True)
 os.makedirs(out_dir, exist_ok=True)
@@ -343,7 +363,7 @@ index = []
 for c in clips:
     src = os.path.join(cache, c["id"] + ".wav")
     if os.path.exists(src):
-        shutil.copy(src, os.path.join(out_dir, c["id"] + ".wav"))
+        to_app_wav(src, os.path.join(out_dir, c["id"] + ".wav"))
         index.append(c)
 json.dump({"model": MODEL, "voice": VOICE, "clips": index}, open(os.path.join(out_dir, "index.json"), "w", encoding="utf-8"), ensure_ascii=False)
 print(f"recorded now: {made}, failed: {failed}, bundled: {len(index)}/{len(clips)}")

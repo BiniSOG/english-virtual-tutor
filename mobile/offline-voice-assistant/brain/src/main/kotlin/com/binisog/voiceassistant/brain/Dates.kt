@@ -4,12 +4,9 @@ import java.time.LocalDate
 
 enum class Lang(val code: String, val nativeName: String, val ethiopic: Boolean) {
     EN("en", "English", false),
-    AM("am", "አማርኛ", true),
-    OM("om", "Afaan Oromoo", false),
-    TI("ti", "ትግርኛ", true),
-    AA("aa", "Qafar af", false);
+    AM("am", "አማርኛ", true);
 
-    /** Languages with a translation pack (everything except English and Amharic). */
+    /** Translation pack for languages other than English/Amharic (none are enabled now). */
     val pack: Translations.Pack? get() = Translations.of(this)
 
     companion object {

@@ -32,9 +32,6 @@ object Understanding {
     private val languageNames: Map<Lang, List<String>> = mapOf(
         Lang.EN to c(listOf("english", "speak english", "in english", "እንግሊዝኛ", "በእንግሊዝኛ", "afaan ingilizii", "እንግሊዝኛ ተዛረቢ")),
         Lang.AM to c(listOf("amharic", "speak amharic", "in amharic", "አማርኛ", "በአማርኛ", "afaan amaaraa", "ብኣምሓርኛ")),
-        Lang.OM to c(listOf("oromo", "oromiffa", "afaan oromoo", "afan oromo", "ኦሮምኛ", "በኦሮምኛ", "ኦሮሚኛ")),
-        Lang.TI to c(listOf("tigrinya", "tigrigna", "ትግርኛ", "በትግርኛ", "ብትግርኛ", "ትግሪኛ")),
-        Lang.AA to c(listOf("afar", "afar language", "qafar", "qafar af", "አፋርኛ", "በአፋርኛ", "ዓፋርኛ")),
     ).mapValues { (lang, names) -> names + c(lang.pack?.languageNames.orEmpty()) }
 
     /** "speak Oromo", "በትግርኛ", "Afaan Oromoo" -> the language asked for (short utterances only). */

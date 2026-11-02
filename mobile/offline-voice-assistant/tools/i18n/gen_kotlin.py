@@ -17,8 +17,12 @@ def kmap(d, fn=k):
     return "mapOf(" + ", ".join(f"{k(a)} to {fn(b)}" for a, b in d.items()) + ")"
 
 
+import sys
+
+# Languages to include (the JSON drafts for om/ti/aa are kept in tools/i18n but are not enabled).
+ENABLED = sys.argv[1:]
 packs = []
-for code in ["om", "ti", "aa"]:
+for code in ENABLED:
     d = json.load(open(f"tools/i18n/{code}.json", encoding="utf-8"))
     n = d["numbers"]
     ui = d["ui"] if isinstance(d["ui"], dict) else {}
@@ -76,8 +80,8 @@ object Translations {{
     )
 
     val packs: Map<String, Pack> by lazy {{
-        mapOf(
-{(","+chr(10)).join(packs)},
+        mapOf<String, Pack>(
+{(","+chr(10)).join(packs)}
         )
     }}
 

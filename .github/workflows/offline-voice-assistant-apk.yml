@@ -47,7 +47,7 @@ jobs:
       - name: Python tools for model export
         run: |
           pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1
-          pip install transformers==4.46.3 onnx==1.17.0 "numpy<2.2" sherpa-onnx==2.0.1
+          pip install transformers==4.46.3 onnx==1.17.0 onnxruntime==1.20.1 "numpy<2.2" sherpa-onnx==2.0.1
 
       - name: Cache models
         uses: actions/cache@v4
@@ -55,10 +55,6 @@ jobs:
           path: |
             mobile/offline-voice-assistant/.models-cache
             mobile/offline-voice-assistant/app/src/main/assets/models/tts-am
-            mobile/offline-voice-assistant/app/src/main/assets/models/tts-en
-            mobile/offline-voice-assistant/app/src/main/assets/models/tts-om
-            mobile/offline-voice-assistant/app/src/main/assets/models/tts-ti
-            mobile/offline-voice-assistant/app/src/main/assets/models/tts-aa
           key: models-v1-${{ hashFiles('mobile/offline-voice-assistant/tools/fetch_models.sh', 'mobile/offline-voice-assistant/tools/export_mms_tts.py') }}
 
       - name: Download / export offline models
@@ -73,7 +69,7 @@ jobs:
           key: gemini-voice-${{ github.run_id }}
           restore-keys: gemini-voice-
 
-      - name: Pre-record the Amharic, Oromo, Tigrinya and Afar voice with Gemini (offline playback in the app)
+      - name: Pre-record the Amharic voice with Gemini (offline playback in the app)
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
@@ -92,15 +88,20 @@ jobs:
 
       - name: Build APK
         run: |
-          ./gradlew --no-daemon :app:assembleRelease
+          # x86_64 is built only for the emulator test (separate APK, not published).
+          ./gradlew --no-daemon :app:assembleRelease -PwithX86=true
           mkdir -p build/out
-          cp app/build/outputs/apk/release/app-release.apk build/out/offline-voice-assistant.apk
+          cp app/build/outputs/apk/release/app-arm64-v8a-release.apk build/out/offline-voice-assistant-arm64.apk
+          cp app/build/outputs/apk/release/app-armeabi-v7a-release.apk build/out/offline-voice-assistant-32bit.apk
           ls -la build/out
+          echo "### APK sizes" >> $GITHUB_STEP_SUMMARY
+          du -h build/out/*.apk >> $GITHUB_STEP_SUMMARY
+          unzip -l build/out/offline-voice-assistant-arm64.apk | sort -k1 -n -r | head -15
 
       - uses: actions/upload-artifact@v4
         with:
           name: offline-voice-assistant-apk
-          path: mobile/offline-voice-assistant/build/out/offline-voice-assistant.apk
+          path: mobile/offline-voice-assistant/build/out/*.apk
           compression-level: 0
 
       - uses: actions/upload-artifact@v4
@@ -118,11 +119,12 @@ jobs:
           body: |
             Offline Amharic/English voice account-opening assistant (Android, arm64-v8a + armeabi-v7a).
             Commit ${{ github.sha }} on ${{ github.ref_name }}.
-            Download `offline-voice-assistant.apk` on the phone, allow installing from this source, then open "AI Account Assistant".
-          files: mobile/offline-voice-assistant/build/out/offline-voice-assistant.apk
-
-      - name: Build emulator test APK (adds x86_64)
-        run: ./gradlew --no-daemon :app:assembleDebug -PwithX86=true
+            English and Amharic. Download **`offline-voice-assistant-arm64.apk`** (almost every phone from the last 6+ years).
+            Only very old 32-bit phones need `offline-voice-assistant-32bit.apk`.
+            Allow installing from this source, then open "AI Account Assistant".
+          files: |
+            mobile/offline-voice-assistant/build/out/offline-voice-assistant-arm64.apk
+            mobile/offline-voice-assistant/build/out/offline-voice-assistant-32bit.apk
 
       - name: Enable KVM
         run: |
@@ -141,7 +143,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -no-snapshot -camera-front emulated -camera-back none
           working-directory: mobile/offline-voice-assistant
-          script: python3 tools/emulator_smoke.py app/build/outputs/apk/debug/app-debug.apk build/smoke
+          script: python3 tools/emulator_smoke.py app/build/outputs/apk/release/app-x86_64-release.apk build/smoke
 
       - uses: actions/upload-artifact@v4
         if: always()
