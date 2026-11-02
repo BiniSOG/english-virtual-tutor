@@ -427,8 +427,9 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: Throwable) {
                 Log.e(TAG, "speech output failed", e)
             } finally {
-                // A short tail so the end of our own voice isn't picked up by the microphone.
-                if (isActive) delay(250)
+                // Playback already ends with a short silence; listen again right away so a quick
+                // "ok" isn't clipped to "k".
+                if (isActive) delay(60)
                 resetAfterSpeech = true
                 lastActivity = System.currentTimeMillis()
                 speaking = false

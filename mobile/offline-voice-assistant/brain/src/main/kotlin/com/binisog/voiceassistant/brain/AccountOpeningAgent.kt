@@ -221,7 +221,9 @@ class AccountOpeningAgent(
 
     private fun answer(text: String, typed: Boolean): Reply? {
         when (step) {
-            Step.GREETING -> return notUnderstood()
+            // "Shall we start?" – any short reply that isn't a no or a question means let's go
+            // (speech recognition often clips or mishears a short "ok").
+            Step.GREETING -> return if (Understanding.isShortReply(text)) onYes() ?: notUnderstood() else notUnderstood()
             Step.FULL_NAME -> {
                 val name = Understanding.extractName(text) ?: return notUnderstood()
                 if (name.split(' ').size < 2) return say("nameNeedsFull")

@@ -14,6 +14,9 @@ object Understanding {
         listOf(
             "yes", "yeah", "yep", "yup", "yah", "correct", "right", "that's right", "thats right", "sure",
             "ok", "okay", "confirm", "go ahead", "let's go", "lets go", "start", "of course", "exactly",
+            "k", "kay", "okey", "okie", "alright", "all right", "fine", "go", "begin", "let's begin", "lets begin",
+            "let's start", "lets start", "ready", "i'm ready", "im ready", "continue", "proceed", "yes please",
+            "sure thing", "absolutely", "definitely", "indeed", "true", "good", "great", "perfect", "sounds good",
             "አዎ", "አዎን", "አዎ ትክክል", "እሺ", "ትክክል", "ትክክል ነው", "ልክ ነው", "ቀጥል", "ቀጥሉ", "እንጀምር", "ጀምር", "በትክክል",
         ) + extra("yes")
     )
@@ -52,6 +55,13 @@ object Understanding {
         return phrases.any { p -> padded.contains(" $p ") }
     }
 
+    /** Single yes/no words (for tolerant matching of slightly misheard words, e.g. "stat" -> "start"). */
+    private val yesWords by lazy { yes.filter { ' ' !in it && it.length >= 4 && !AmharicText.containsEthiopic(it) } }
+    private val noWords by lazy { no.filter { ' ' !in it && it.length >= 4 && !AmharicText.containsEthiopic(it) } }
+
+    private fun fuzzyHas(t: String, words: List<String>): Boolean =
+        t.split(' ').any { w -> w.length >= 4 && words.any { levenshtein(it, w) <= 1 } }
+
     /** Short utterances only: "yes my name is no..." must not count as an answer. */
     fun intent(raw: String): Intent {
         val t = AmharicText.canonical(raw)
@@ -62,8 +72,8 @@ object Understanding {
         if (hasPhrase(t, repeat) && words <= 5) return Intent.REPEAT
         if (hasPhrase(t, back) && words <= 4) return Intent.BACK
         if (words <= 4) {
-            val isNo = hasPhrase(t, no)
-            val isYes = hasPhrase(t, yes)
+            val isNo = hasPhrase(t, no) || fuzzyHas(t, noWords)
+            val isYes = hasPhrase(t, yes) || fuzzyHas(t, yesWords)
             // Negation wins: "አይ ትክክል አይደለም" contains "ትክክል" but means no.
             if (isNo) return Intent.NO
             if (isYes) return Intent.YES
@@ -71,6 +81,8 @@ object Understanding {
         if (raw.trim().endsWith("?") || raw.trim().endsWith("፧") || hasPhrase(t, questionWords)) return Intent.QUESTION
         return Intent.NONE
     }
+
+    fun isShortReply(raw: String): Boolean = AmharicText.canonical(raw).split(' ').count { it.isNotBlank() } in 1..5
 
     // ------------------------------------------------------------------ names
 

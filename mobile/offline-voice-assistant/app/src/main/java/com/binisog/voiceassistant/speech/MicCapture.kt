@@ -16,9 +16,11 @@ class MicCapture(private val onSamples: (FloatArray) -> Unit) {
     fun start(): Boolean {
         if (running) return true
         val minBuf = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+        // VOICE_COMMUNICATION turns on the phone's echo canceller and noise suppressor, so the
+        // first word after Hana stops talking isn't lost in the tail of her voice.
         val record = try {
             AudioRecord(
-                MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                MediaRecorder.AudioSource.VOICE_COMMUNICATION,
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,

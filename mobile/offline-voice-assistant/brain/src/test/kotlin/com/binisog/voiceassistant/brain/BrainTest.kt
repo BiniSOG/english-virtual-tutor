@@ -76,6 +76,9 @@ class UnderstandingTest {
         assertEquals(Intent.QUESTION, Understanding.intent("why are you recording me?"))
         assertEquals(Intent.QUESTION, Understanding.intent("ለምን ትቀርጹኛላችሁ"))
         assertEquals(Intent.NONE, Understanding.intent("my name is Betelhem Tesfaye Alemu"))
+        for (said in listOf("ok", "k begin", "start", "begin", "ok begin", "let's begin", "stat", "okey", "alright", "ready"))
+            assertEquals(Intent.YES, Understanding.intent(said), said)
+        assertEquals(Intent.NONE, Understanding.intent("Abebe Kebede"))
     }
 
     @Test fun names() {
@@ -190,6 +193,19 @@ class AgentTest {
         val next = a.onUtterance("yes")!!
         assertTrue(next.display.contains("Abebe"), next.display)
         assertTrue(!next.display.contains("{"), next.display)
+    }
+
+    @Test fun greetingAcceptsAnyShortReply() {
+        for (said in listOf("k begin", "begin", "start", "ok", "hmm let's do it", "go on then")) {
+            val a = agent()
+            a.start()
+            a.onUtterance(said)
+            assertEquals(Step.FULL_NAME, a.step, said)
+        }
+        val a = agent()
+        a.start()
+        a.onUtterance("no")
+        assertEquals(Step.GREETING, a.step)
     }
 
     @Test fun guards() {
