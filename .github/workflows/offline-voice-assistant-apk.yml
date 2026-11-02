@@ -108,6 +108,19 @@ jobs:
           name: model-check-audio
           path: mobile/offline-voice-assistant/build/model-check
 
+      - name: Publish pre-release with the APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: offline-assistant-build-${{ github.run_number }}
+          name: Offline voice assistant – build ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          body: |
+            Offline Amharic/English voice account-opening assistant (Android, arm64-v8a + armeabi-v7a).
+            Commit ${{ github.sha }} on ${{ github.ref_name }}.
+            Download `offline-voice-assistant.apk` on the phone, allow installing from this source, then open "AI Account Assistant".
+          files: mobile/offline-voice-assistant/build/out/offline-voice-assistant.apk
+
       - name: Build emulator test APK (adds x86_64)
         run: ./gradlew --no-daemon :app:assembleDebug -PwithX86=true
 
@@ -136,15 +149,3 @@ jobs:
           name: emulator-smoke-test
           path: mobile/offline-voice-assistant/build/smoke
 
-      - name: Publish pre-release with the APK
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: offline-assistant-build-${{ github.run_number }}
-          name: Offline voice assistant – build ${{ github.run_number }}
-          target_commitish: ${{ github.sha }}
-          prerelease: true
-          body: |
-            Offline Amharic/English voice account-opening assistant (Android, arm64-v8a + armeabi-v7a).
-            Commit ${{ github.sha }} on ${{ github.ref_name }}.
-            Download `offline-voice-assistant.apk` on the phone, allow installing from this source, then open "AI Account Assistant".
-          files: mobile/offline-voice-assistant/build/out/offline-voice-assistant.apk

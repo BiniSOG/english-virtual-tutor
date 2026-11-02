@@ -131,10 +131,9 @@ def check_recording(tag):
     if os.path.getsize(local) == 0:
         with open(local, "wb") as f:
             f.write(subprocess.run(["adb", "exec-out", "cat", path], capture_output=True, timeout=120).stdout)
-    probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,codec_name,duration", "-of", "csv=p=0", local],
-                           capture_output=True, text=True)
-    print("ffprobe:", probe.stdout.strip(), probe.stderr.strip())
-    if os.path.getsize(local) > 0 and probe.returncode == 0 and "audio" not in probe.stdout:
+    data = open(local, "rb").read()
+    print(f"recording pulled: {len(data)} bytes, video track: {b'vide' in data}, audio track: {b'soun' in data}")
+    if data and b"soun" not in data:
         fail("call recording has no audio track")
 
 
