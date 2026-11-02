@@ -107,6 +107,37 @@ class AccountOpeningAgent(
         return answer(text, typed)
     }
 
+    /**
+     * Speech recognition gives one or more transcriptions of what the customer said. Use the first
+     * one that makes sense for the current question (a date at "date of birth", digits for the
+     * FAN, a known city, yes/no for a confirmation...), otherwise the first one.
+     */
+    fun pickBest(alternatives: List<String>): String? {
+        val clean = alternatives.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+        return clean.firstOrNull { understands(it) } ?: clean.firstOrNull()
+    }
+
+    /** Would [text] be understood at the current step? (No side effects.) */
+    fun understands(text: String): Boolean {
+        when (Understanding.intent(text)) {
+            Intent.NONE -> Unit
+            Intent.QUESTION -> if (Faq.answer(text, lang) != null) return true
+            Intent.YES, Intent.NO -> return pending != null || step == Step.GREETING || step == Step.REVIEW
+            else -> return true
+        }
+        return when (step) {
+            Step.GREETING -> Understanding.isShortReply(text)
+            Step.FULL_NAME -> (Understanding.extractName(text)?.split(' ')?.size ?: 0) >= 2
+            Step.DOB -> DateParser.parse(text, lang) != null
+            Step.BIRTH_CITY -> Understanding.matchPlace(text, Understanding.cities) != null
+            Step.NATIONALITY -> Understanding.matchPlace(text, Understanding.countries) != null
+            Step.ACCOUNT_TYPE -> Understanding.extractAccountType(text) != null
+            Step.FAN, Step.OTP -> Numbers.digits(text).isNotEmpty()
+            Step.REVIEW -> Understanding.fieldToEdit(text) != null
+            else -> false
+        }
+    }
+
     /** The Confirm button. */
     fun onConfirm(): Reply? = when {
         pending != null -> commit()

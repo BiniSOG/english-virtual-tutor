@@ -23,8 +23,13 @@ sealed interface AsrEvent {
     /** Live caption while the user is still talking. */
     data class Partial(val text: String) : AsrEvent
 
-    /** A finished sentence. */
-    data class Final(val text: String) : AsrEvent
+    /**
+     * A finished sentence, as one or more transcriptions (best first). The dialogue picks the
+     * one that answers the current question, e.g. the one that reads as a date at "date of birth".
+     */
+    data class Final(val alternatives: List<String>) : AsrEvent {
+        val text: String get() = alternatives.firstOrNull().orEmpty()
+    }
 }
 
 /** All methods are called from one background thread. */
@@ -36,8 +41,79 @@ interface SpeechRecognizerEngine {
 
 private fun threads() = Runtime.getRuntime().availableProcessors().coerceIn(2, 4)
 
-/** English: streaming Zipformer transducer. Endpointing is built in; captions update as you speak. */
-class StreamingEnglishRecognizer(assets: AssetManager) : SpeechRecognizerEngine {
+/**
+ * Meta Omnilingual ASR (300M, CTC). Shared by both languages: it is the Amharic recogniser and
+ * the second, more accent-robust opinion on English sentences.
+ */
+class Omnilingual(assets: AssetManager) {
+    private val recognizer = OfflineRecognizer(
+        assetManager = assets,
+        config = OfflineRecognizerConfig(
+            featConfig = FeatureConfig(sampleRate = SAMPLE_RATE, featureDim = 80),
+            modelConfig = OfflineModelConfig(
+                omnilingual = OfflineOmnilingualAsrCtcModelConfig(model = "${ModelCatalog.ASR_MULTI}/model.onnx"),
+                tokens = "${ModelCatalog.ASR_MULTI}/tokens.txt",
+                numThreads = threads(),
+            ),
+        ),
+    )
+
+    fun transcribe(samples: FloatArray): String {
+        if (samples.size < SAMPLE_RATE / 5) return ""
+        val stream = recognizer.createStream()
+        return try {
+            stream.acceptWaveform(normalizeLevel(samples), SAMPLE_RATE)
+            recognizer.decode(stream)
+            recognizer.getResult(stream).text.trim()
+        } finally {
+            stream.release()
+        }
+    }
+
+    fun release() = recognizer.release()
+}
+
+/** Quiet phone speech is raised to a steady level before recognition (max 8x, no clipping). */
+fun normalizeLevel(x: FloatArray): FloatArray {
+    var sum = 0.0
+    var peak = 0f
+    for (v in x) { sum += v * v; peak = maxOf(peak, kotlin.math.abs(v)) }
+    val rms = kotlin.math.sqrt(sum / x.size.coerceAtLeast(1)).toFloat()
+    if (rms < 1e-5f || peak < 1e-4f) return x
+    val gain = minOf(0.08f / rms, 0.95f / peak, 8f)
+    if (gain in 0.9f..1.1f) return x
+    return FloatArray(x.size) { x[it] * gain }
+}
+
+/** Keeps the last few seconds of microphone audio, addressable by absolute sample index. */
+private class AudioRing(seconds: Int) {
+    private val buf = FloatArray(SAMPLE_RATE * seconds)
+    var total = 0L
+        private set
+
+    fun add(x: FloatArray) {
+        for (v in x) { buf[(total % buf.size).toInt()] = v; total++ }
+    }
+
+    /** Samples [from, to) by absolute index, clipped to what is still in the ring. */
+    fun slice(from: Long, to: Long): FloatArray {
+        val a = maxOf(from, total - buf.size, 0L)
+        val b = minOf(to, total)
+        if (b <= a) return FloatArray(0)
+        return FloatArray((b - a).toInt()) { buf[((a + it) % buf.size).toInt()] }
+    }
+
+    fun clear() { total = 0 }
+}
+
+private const val PAD_BEFORE = SAMPLE_RATE / 4   // 250 ms before speech: don't clip the first word
+private const val PAD_AFTER = SAMPLE_RATE / 5    // 200 ms after
+
+/**
+ * English: streaming Zipformer for live captions and barge-in; each finished sentence is also
+ * transcribed by Omnilingual (better with accents), and both are offered to the dialogue.
+ */
+class StreamingEnglishRecognizer(assets: AssetManager, private val omni: Omnilingual?) : SpeechRecognizerEngine {
     private val dir = ModelCatalog.ASR_EN
     private val recognizer = OnlineRecognizer(
         assetManager = assets,
@@ -55,18 +131,23 @@ class StreamingEnglishRecognizer(assets: AssetManager) : SpeechRecognizerEngine 
             ),
             endpointConfig = EndpointConfig(
                 rule1 = EndpointRule(false, 2.4f, 0.0f),
-                rule2 = EndpointRule(true, 1.0f, 0.0f),
+                rule2 = EndpointRule(true, 0.9f, 0.0f),
                 rule3 = EndpointRule(false, 0.0f, 20.0f),
             ),
             enableEndpoint = true,
-            decodingMethod = "greedy_search",
+            // Keeps several hypotheses instead of only the single best token at each step.
+            decodingMethod = "modified_beam_search",
+            maxActivePaths = 4,
         ),
     )
     private var stream: OnlineStream = recognizer.createStream()
     private var lastPartial = ""
+    private val ring = AudioRing(30)
+    private var utteranceStart = 0L
 
     override fun accept(samples: FloatArray): List<AsrEvent> {
         val events = mutableListOf<AsrEvent>()
+        ring.add(samples)
         stream.acceptWaveform(samples, SAMPLE_RATE)
         while (recognizer.isReady(stream)) recognizer.decode(stream)
         val text = recognizer.getResult(stream).text.trim().lowercase()
@@ -75,9 +156,14 @@ class StreamingEnglishRecognizer(assets: AssetManager) : SpeechRecognizerEngine 
             if (text.isNotEmpty()) events += AsrEvent.Partial(text)
         }
         if (recognizer.isEndpoint(stream)) {
-            if (text.isNotEmpty()) events += AsrEvent.Final(text)
+            if (text.isNotEmpty()) {
+                val audio = ring.slice(utteranceStart - PAD_BEFORE, ring.total)
+                val second = runCatching { omni?.transcribe(audio) }.getOrNull()?.lowercase().orEmpty()
+                events += AsrEvent.Final(listOf(second, text).filter { it.isNotBlank() }.distinct())
+            }
             recognizer.reset(stream)
             lastPartial = ""
+            utteranceStart = ring.total
         }
         return events
     }
@@ -86,6 +172,7 @@ class StreamingEnglishRecognizer(assets: AssetManager) : SpeechRecognizerEngine 
         stream.release()
         stream = recognizer.createStream()
         lastPartial = ""
+        utteranceStart = ring.total
     }
 
     override fun release() {
@@ -95,20 +182,19 @@ class StreamingEnglishRecognizer(assets: AssetManager) : SpeechRecognizerEngine 
 }
 
 /**
- * Amharic (and English fallback): Silero VAD cuts the microphone stream into sentences and
- * Meta's Omnilingual ASR CTC model transcribes each one. Omnilingual ASR recognises Amharic in
- * Ge'ez script far better than small multilingual Whisper models.
+ * Amharic: Silero VAD finds each sentence, Omnilingual transcribes it with a little audio kept
+ * before and after (so first and last syllables aren't cut off).
  */
-class VadOfflineRecognizer(assets: AssetManager) : SpeechRecognizerEngine {
+class VadOfflineRecognizer(assets: AssetManager, private val omni: Omnilingual) : SpeechRecognizerEngine {
     private val windowSize = 512
     private val vad = Vad(
         assetManager = assets,
         config = VadModelConfig(
             sileroVadModelConfig = SileroVadModelConfig(
                 model = ModelCatalog.VAD,
-                threshold = 0.5f,
-                minSilenceDuration = 0.7f,
-                minSpeechDuration = 0.25f,
+                threshold = 0.45f,
+                minSilenceDuration = 0.6f,
+                minSpeechDuration = 0.2f,
                 windowSize = windowSize,
                 maxSpeechDuration = 20.0f,
             ),
@@ -116,26 +202,18 @@ class VadOfflineRecognizer(assets: AssetManager) : SpeechRecognizerEngine {
             numThreads = 1,
         ),
     )
-    private val recognizer = OfflineRecognizer(
-        assetManager = assets,
-        config = OfflineRecognizerConfig(
-            featConfig = FeatureConfig(sampleRate = SAMPLE_RATE, featureDim = 80),
-            modelConfig = OfflineModelConfig(
-                omnilingual = OfflineOmnilingualAsrCtcModelConfig(model = "${ModelCatalog.ASR_MULTI}/model.onnx"),
-                tokens = "${ModelCatalog.ASR_MULTI}/tokens.txt",
-                numThreads = threads(),
-            ),
-        ),
-    )
     private var buffer = FloatArray(0)
     private var wasSpeech = false
+    private val ring = AudioRing(40)
 
     override fun accept(samples: FloatArray): List<AsrEvent> {
         val events = mutableListOf<AsrEvent>()
         buffer += samples
         var offset = 0
         while (buffer.size - offset >= windowSize) {
-            vad.acceptWaveform(buffer.copyOfRange(offset, offset + windowSize))
+            val chunk = buffer.copyOfRange(offset, offset + windowSize)
+            ring.add(chunk)
+            vad.acceptWaveform(chunk)
             offset += windowSize
         }
         buffer = buffer.copyOfRange(offset, buffer.size)
@@ -147,27 +225,23 @@ class VadOfflineRecognizer(assets: AssetManager) : SpeechRecognizerEngine {
         while (!vad.empty()) {
             val segment = vad.front()
             vad.pop()
-            val stream = recognizer.createStream()
-            try {
-                stream.acceptWaveform(segment.samples, SAMPLE_RATE)
-                recognizer.decode(stream)
-                val text = recognizer.getResult(stream).text.trim()
-                if (text.isNotEmpty()) events += AsrEvent.Final(text)
-            } finally {
-                stream.release()
-            }
+            // segment.start counts samples since the VAD was (re)started, like the ring.
+            val padded = ring.slice(segment.start - PAD_BEFORE, segment.start + segment.samples.size + PAD_AFTER)
+            val audio = if (padded.size >= segment.samples.size) padded else segment.samples
+            val text = omni.transcribe(audio)
+            if (text.isNotEmpty()) events += AsrEvent.Final(listOf(text))
         }
         return events
     }
 
     override fun reset() {
         vad.reset()
+        ring.clear()
         buffer = FloatArray(0)
         wasSpeech = false
     }
 
     override fun release() {
         vad.release()
-        recognizer.release()
     }
 }

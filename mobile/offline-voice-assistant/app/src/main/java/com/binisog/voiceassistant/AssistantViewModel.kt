@@ -86,6 +86,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     private val ttsDispatcher = Executors.newSingleThreadExecutor { Thread(it, "tts") }.asCoroutineDispatcher()
 
     private val recognizers = java.util.concurrent.ConcurrentHashMap<Lang, SpeechRecognizerEngine>()
+    private var omni: com.binisog.voiceassistant.speech.Omnilingual? = null
     private var agent: AccountOpeningAgent? = null
     private var mic: MicCapture? = null
     private var wav: WavWriter? = null
@@ -124,9 +125,12 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                     // Keep memory low on small phones: only one language's recogniser at a time.
                     recognizers.keys.filter { it != lang }.forEach { recognizers.remove(it)?.release() }
                     if (!recognizers.containsKey(lang)) {
+                        val assets = getApplication<Application>().assets
+                        // One Omnilingual model serves both languages (Amharic, and English 2nd opinion).
+                        if (omni == null && catalog.hasOmnilingual) omni = com.binisog.voiceassistant.speech.Omnilingual(assets)
                         val engine = when {
-                            lang == Lang.EN && catalog.hasStreamingEnglish -> StreamingEnglishRecognizer(getApplication<Application>().assets)
-                            catalog.hasOmnilingual && catalog.hasVad -> VadOfflineRecognizer(getApplication<Application>().assets)
+                            lang == Lang.EN && catalog.hasStreamingEnglish -> StreamingEnglishRecognizer(assets, omni)
+                            omni != null && catalog.hasVad -> VadOfflineRecognizer(assets, omni!!)
                             else -> null
                         }
                         if (engine != null) recognizers[lang] = engine
@@ -358,13 +362,16 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                         if (speaking && newWords(e.text) >= 2) bargeIn()
                     }
                     is AsrEvent.Final -> {
-                        if (echoWindow() && isEcho(e.text)) {
-                            Log.i(TAG, "ignored echo: ${e.text}")
+                        if (echoWindow() && e.alternatives.all { isEcho(it) }) {
+                            Log.i(TAG, "ignored echo: ${e.alternatives}")
                             _state.update { it.copy(liveCaption = "") }
                             return@withContext
                         }
                         if (speaking) bargeIn()
-                        onUserText(e.text, typed = false)
+                        // Of the transcriptions, use the one that answers the current question.
+                        val heard = agent?.pickBest(e.alternatives) ?: e.text
+                        Log.i(TAG, "heard ${e.alternatives} -> '$heard'")
+                        onUserText(heard, typed = false)
                     }
                 }
             }
@@ -542,6 +549,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         camera.unbind()
         voice.release()
         recognizers.values.forEach { it.release() }
+        omni?.release()
         asrDispatcher.close()
         ttsDispatcher.close()
     }

@@ -68,6 +68,8 @@ f=$(fetch "$REL/asr-models/$OMNI.tar.bz2")
 tar xjf "$f" -C "$CACHE"
 cp "$CACHE/$OMNI/model.int8.onnx" "$ASSETS/asr-am/model.onnx"
 cp "$CACHE/$OMNI/tokens.txt" "$ASSETS/asr-am/tokens.txt"
+# Only Ge'ez, Latin and digits may come out (stops Amharic being written in Arabic script etc.).
+python3 tools/restrict_ctc_vocab.py "$ASSETS/asr-am/model.onnx" "$ASSETS/asr-am/tokens.txt"
 
 # ---- Voice activity detection ----
 cp "$(fetch "$REL/asr-models/silero_vad.onnx")" "$ASSETS/vad/silero_vad.onnx"

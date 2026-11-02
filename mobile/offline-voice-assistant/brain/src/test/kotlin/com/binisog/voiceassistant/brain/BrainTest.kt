@@ -208,6 +208,20 @@ class AgentTest {
         assertEquals(Step.GREETING, a.step)
     }
 
+    @Test fun picksTheTranscriptionThatAnswersTheQuestion() {
+        val a = agent()
+        a.start(); a.onUtterance("yes")
+        a.onUtterance("my name is Abebe Kebede"); a.onUtterance("yes")
+        assertEquals(Step.DOB, a.step)
+        assertEquals("january fifteen two thousand", a.pickBest(listOf("january fifty in two thousands of", "january fifteen two thousand").reversed().let { listOf("jane worry fifteen too", it.first()) }))
+        assertEquals("15 January 2000", a.pickBest(listOf("fifteen generate", "15 January 2000")))
+        a.onUtterance("15 January 2000"); a.onUtterance("yes")
+        assertEquals(Step.BIRTH_CITY, a.step)
+        assertEquals("adama", a.pickBest(listOf("the bottom of", "adama")))
+        // nothing fits: the first one is used
+        assertEquals("blah", a.pickBest(listOf("blah", "blub")))
+    }
+
     @Test fun guards() {
         val a = agent()
         a.start(); a.onUtterance("yes")
