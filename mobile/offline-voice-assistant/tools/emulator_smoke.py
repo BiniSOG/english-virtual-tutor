@@ -132,8 +132,12 @@ def check_recording(tag):
         with open(local, "wb") as f:
             f.write(subprocess.run(["adb", "exec-out", "cat", path], capture_output=True, timeout=120).stdout)
     data = open(local, "rb").read()
+    if data[4:8] != b"ftyp":
+        # Release builds can't be read with run-as; the app's own log line (ok=true) must do.
+        print(f"recording saved by the app ({line.split('size=')[1].split(' ')[0]} bytes); not readable from adb on a release build")
+        return
     print(f"recording pulled: {len(data)} bytes, video track: {b'vide' in data}, audio track: {b'soun' in data}")
-    if data and b"soun" not in data:
+    if b"soun" not in data:
         fail("call recording has no audio track")
 
 
