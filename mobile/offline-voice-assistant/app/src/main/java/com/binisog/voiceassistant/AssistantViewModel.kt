@@ -37,7 +37,7 @@ import java.io.File
 import java.time.LocalDate
 import java.util.concurrent.Executors
 
-enum class Screen { HOME, RINGING, CALL, SESSIONS }
+enum class Screen { HOME, WAITING, RINGING, CALL, SESSIONS }
 
 data class UiState(
     val screen: Screen = Screen.HOME,
@@ -68,6 +68,7 @@ data class UiState(
     val callStartedAt: Long = 0,
     val savingVideo: Boolean = false,
     val callVideo: String? = null,
+    val waitSecondsLeft: Int = 0,
 )
 
 class AssistantViewModel(app: Application) : AndroidViewModel(app) {
@@ -166,7 +167,30 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     // ------------------------------------------------------------------ incoming call
 
     /** "Create account" rings the phone like a real incoming video call. */
+    private var waitJob: Job? = null
+
+    /**
+     * "Create account": show "please wait, Hana will call you" for [WAIT_SECONDS], then the phone
+     * rings like a real incoming call.
+     */
     fun requestCall() {
+        waitJob?.cancel()
+        _state.update { it.copy(screen = Screen.WAITING, waitSecondsLeft = WAIT_SECONDS) }
+        waitJob = viewModelScope.launch {
+            for (left in WAIT_SECONDS downTo 1) {
+                _state.update { it.copy(waitSecondsLeft = left) }
+                delay(1000)
+            }
+            if (_state.value.screen == Screen.WAITING) ring()
+        }
+    }
+
+    fun cancelWaiting() {
+        waitJob?.cancel()
+        _state.update { it.copy(screen = Screen.HOME) }
+    }
+
+    private fun ring() {
         _state.update { it.copy(screen = Screen.RINGING) }
         val ctx = getApplication<Application>()
         runCatching {
@@ -525,5 +549,6 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     companion object {
         private const val TAG = "AssistantVM"
         private const val SILENCE_MS = 12_000L
+        private const val WAIT_SECONDS = 5
     }
 }

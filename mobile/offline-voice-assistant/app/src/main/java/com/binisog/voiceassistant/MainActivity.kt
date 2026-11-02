@@ -21,6 +21,7 @@ import com.binisog.voiceassistant.ui.AppTheme
 import com.binisog.voiceassistant.ui.CallScreen
 import com.binisog.voiceassistant.ui.HomeScreen
 import com.binisog.voiceassistant.ui.IncomingCallScreen
+import com.binisog.voiceassistant.ui.WaitingForCallScreen
 import com.binisog.voiceassistant.ui.SessionsScreen
 
 class MainActivity : ComponentActivity() {
@@ -43,6 +44,7 @@ class MainActivity : ComponentActivity() {
                     when (state.screen) {
                         Screen.CALL -> vm.endCall()
                         Screen.RINGING -> vm.declineCall()
+                        Screen.WAITING -> vm.cancelWaiting()
                         else -> vm.goHome()
                     }
                 }
@@ -55,6 +57,7 @@ class MainActivity : ComponentActivity() {
                             onSessions = vm::showSessions,
                             onDismissCrash = vm::dismissCrash,
                         )
+                        Screen.WAITING -> WaitingForCallScreen(state.lang, state.waitSecondsLeft, onCancel = vm::cancelWaiting)
                         Screen.RINGING -> IncomingCallScreen(
                             lang = state.lang,
                             onAccept = { if (hasPermissions()) vm.acceptCall() else launcher.launch(needed) },

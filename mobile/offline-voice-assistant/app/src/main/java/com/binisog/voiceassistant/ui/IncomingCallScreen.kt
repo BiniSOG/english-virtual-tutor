@@ -95,3 +95,45 @@ private fun CallAction(icon: ImageVector, label: String, color: Color, scale: Fl
         Text(label, color = Color.White, fontSize = 14.sp)
     }
 }
+
+/** Shown after "Create account": the customer waits a few seconds until Hana calls. */
+@Composable
+fun WaitingForCallScreen(lang: Lang, secondsLeft: Int, onCancel: () -> Unit) {
+    val portrait = rememberAgentPortrait()
+    val t = rememberInfiniteTransition(label = "wait")
+    val pulse by t.animateFloat(0.92f, 1.06f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "pulse")
+    Box(Modifier.fillMaxSize().background(Color(0xFF0B1630))) {
+        Column(
+            Modifier.fillMaxSize().padding(horizontal = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Box(Modifier.size(130.dp).scale(pulse).clip(CircleShape).border(3.dp, Color.White.copy(alpha = 0.8f), CircleShape)) {
+                if (portrait != null) {
+                    Image(portrait, null, contentScale = ContentScale.Crop, alignment = BiasAlignment(0f, -0.62f), modifier = Modifier.fillMaxSize())
+                }
+            }
+            Spacer(Modifier.height(28.dp))
+            Text(
+                tr(lang, "Please wait for a call", "እባክዎ ጥሪ ይጠብቁ"),
+                color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(10.dp))
+            Text(
+                tr(lang, "Hana from Demo Bank will video call you to open your account.", "ከዴሞ ባንክ ሐና አካውንትዎን ለመክፈት በቪዲዮ ትደውልልዎታለች።"),
+                color = Color.White.copy(alpha = 0.8f), fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+            Spacer(Modifier.height(28.dp))
+            androidx.compose.material3.CircularProgressIndicator(color = Color.White, modifier = Modifier.size(28.dp), strokeWidth = 3.dp)
+            Spacer(Modifier.height(12.dp))
+            Text(
+                tr(lang, "Calling you in $secondsLeft s…", "በ$secondsLeft ሰከንድ ውስጥ ትደውላለች…"),
+                color = Color.White, fontSize = 16.sp,
+            )
+        }
+        androidx.compose.material3.TextButton(
+            onClick = onCancel,
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 32.dp),
+        ) { Text(tr(lang, "Cancel", "ሰርዝ"), color = Color.White, fontSize = 16.sp) }
+    }
+}
