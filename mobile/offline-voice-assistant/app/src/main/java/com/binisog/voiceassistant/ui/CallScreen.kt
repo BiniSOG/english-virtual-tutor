@@ -11,6 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -145,6 +146,7 @@ fun CallScreen(state: UiState, vm: AssistantViewModel) {
                 Spacer(Modifier.height(8.dp))
             }
             ConversationStatus(state)
+            SuggestionChips(state, vm)
             if (state.typing) {
                 Spacer(Modifier.height(8.dp))
                 Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(16.dp)) {
@@ -259,6 +261,28 @@ private fun ConversationStatus(state: UiState) {
             Box(Modifier.size(8.dp).alpha(if (listening || state.speaking) pulse else 1f).clip(CircleShape).background(color))
             Spacer(Modifier.width(6.dp))
             Text(label, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+        }
+    }
+}
+
+/** Answers the assistant expects right now: say one, or tap it. */
+@Composable
+private fun SuggestionChips(state: UiState, vm: AssistantViewModel) {
+    if (state.suggestions.isEmpty() || state.step == Step.CREATING) return
+    Spacer(Modifier.height(8.dp))
+    Text(tr(state.lang, "You can say", "እንዲህ ማለት ይችላሉ"), color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+    Spacer(Modifier.height(4.dp))
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        for (s in state.suggestions) {
+            Box(
+                Modifier.clip(RoundedCornerShape(18.dp)).background(Color.White.copy(alpha = 0.22f))
+                    .border(1.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(18.dp))
+                    .clickable { vm.onUserText(s, typed = true) }
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            ) { Text(s, color = Color.White, fontSize = 15.sp, maxLines = 1) }
         }
     }
 }

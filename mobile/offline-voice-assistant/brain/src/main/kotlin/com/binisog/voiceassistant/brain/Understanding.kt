@@ -234,7 +234,16 @@ object Understanding {
             val score = levenshtein(f, w).toDouble() / maxOf(f.length, w.length)
             if (score < bestScore) { bestScore = score; best = p }
         }
-        return if (bestScore <= 0.34) best else null
+        if (bestScore <= 0.34) return best
+        // Last try: compare how the words sound (handles Ge'ez/Latin spellings of the same name).
+        var soundBest: Place? = null
+        var soundScore = 0.0
+        for (p in places) for (f in listOf(p.en, p.am)) for (w in windows) {
+            if (w.length < 3) continue
+            val sc = AnswerPredictor.soundsLike(w, f)
+            if (sc > soundScore) { soundScore = sc; soundBest = p }
+        }
+        return if (soundScore >= 0.8) soundBest else null
     }
 
     private val placeFillers = c(

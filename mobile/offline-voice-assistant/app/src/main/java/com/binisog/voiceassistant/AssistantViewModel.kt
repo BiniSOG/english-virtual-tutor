@@ -69,6 +69,8 @@ data class UiState(
     val savingVideo: Boolean = false,
     val callVideo: String? = null,
     val waitSecondsLeft: Int = 0,
+    /** Likely answers for the current question (say or tap). */
+    val suggestions: List<String> = emptyList(),
 )
 
 class AssistantViewModel(app: Application) : AndroidViewModel(app) {
@@ -87,6 +89,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
 
     private val recognizers = java.util.concurrent.ConcurrentHashMap<Lang, SpeechRecognizerEngine>()
     private var omni: com.binisog.voiceassistant.speech.Omnilingual? = null
+    private val noiseGate = com.binisog.voiceassistant.speech.NoiseGate()
     private var agent: AccountOpeningAgent? = null
     private var mic: MicCapture? = null
     private var wav: WavWriter? = null
@@ -349,9 +352,11 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         // Full duplex: keep listening while Hana talks, so the customer can answer or interrupt
         // at any time. The phone's echo canceller removes most of her voice; [isEcho] the rest.
         if (muted) return
+        // The recording keeps everything; recognition only gets loud, close speech.
+        val clean = noiseGate.process(samples)
         viewModelScope.launch(asrDispatcher) {
             val engine = recognizers[activeLang] ?: return@launch
-            val events = try { engine.accept(samples) } catch (e: Throwable) { Log.e(TAG, "asr", e); emptyList() }
+            val events = try { engine.accept(clean) } catch (e: Throwable) { Log.e(TAG, "asr", e); emptyList() }
             for (e in events) withContext(Dispatchers.Main) {
                 when (e) {
                     is AsrEvent.Partial -> {
@@ -479,7 +484,7 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
         _state.update {
             it.copy(
                 lang = a.lang, step = a.step, assistantText = reply.display, pendingValue = a.pendingValue,
-                digitBuffer = a.digitBuffer, profile = a.profile,
+                digitBuffer = a.digitBuffer, profile = a.profile, suggestions = a.suggestions(),
                 otpBanner = if (a.step == Step.OTP) it.otpBanner else null,
             )
         }

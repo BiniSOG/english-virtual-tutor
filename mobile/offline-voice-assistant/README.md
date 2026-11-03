@@ -61,6 +61,12 @@ English and Amharic. To keep the app small, it ships as one APK per phone type: 
 
 Drafts for Oromo, Tigrinya and Afar are kept in `tools/i18n/` but are not enabled. To enable them, run `python tools/i18n/gen_kotlin.py om ti aa` and add the languages back to `Lang`.
 
-### Recording the voice with Gemini
+### Hana's Amharic voice (recorded with Gemini)
 
-`tools/record_all_voices.sh` records every phrase with Gemini TTS (`gemini-3.8-flash-tts`, voice "Kore"). It batches many lines per request, cuts the audio at the pauses, and checks each cut by transcribing it. Clips are cached in `voice-recordings/` and the build bundles them, so the app plays them offline. A free-tier key allows only about 10 speech requests per day, which records roughly one language a day. The `Record assistant voices (daily)` workflow continues where it stopped once it is on the default branch and the `GEMINI_API_KEY` secret is set. A paid key records everything in a few minutes.
+All 230 Amharic phrases were recorded once with Gemini TTS (`gemini-3.8-flash-tts`, female voice "Kore"), each verified by transcription. They live in `voice-recordings/` and are bundled into the app at build time. No API key is needed to build. To re-record after changing the texts, run `GEMINI_API_KEY=... tools/record_all_voices.sh` locally.
+
+## Listening accuracy
+
+- **Noise gate** (`speech/NoiseGate.kt`): a 100 Hz high-pass filter, an adaptive background-noise estimate, and a gate that only passes sound clearly louder than the background (about +11 dB, minimum about -38 dBFS). The call recording still keeps everything.
+- **Answer prediction** (`brain/AnswerPredictor.kt`): at each question, words that *sound like* an expected answer (yes/no, numbers, months, account types, cities, nationalities) are corrected towards it, comparing English and Ge'ez by sound. Likely answers are shown as buttons to say or tap.
+- **Two transcriptions** for English (streaming Zipformer plus Omnilingual 300M), and the dialogue uses the one that answers the question.

@@ -114,8 +114,14 @@ class AccountOpeningAgent(
      */
     fun pickBest(alternatives: List<String>): String? {
         val clean = alternatives.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
-        return clean.firstOrNull { understands(it) } ?: clean.firstOrNull()
+        // Each transcription pulled towards the answers expected at this step (it only changes
+        // words that sound like an expected one), then as heard.
+        val candidates = clean.flatMap { listOf(AnswerPredictor.correct(it, step, pending != null), it) }.distinct()
+        return candidates.firstOrNull { understands(it) } ?: clean.firstOrNull()
     }
+
+    /** Likely answers for the current question, shown on screen to say or tap. */
+    fun suggestions(): List<String> = AnswerPredictor.suggestions(step, pending != null, lang)
 
     /** Would [text] be understood at the current step? (No side effects.) */
     fun understands(text: String): Boolean {

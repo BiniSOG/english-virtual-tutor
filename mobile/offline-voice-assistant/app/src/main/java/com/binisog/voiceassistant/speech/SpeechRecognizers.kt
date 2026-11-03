@@ -192,7 +192,7 @@ class VadOfflineRecognizer(assets: AssetManager, private val omni: Omnilingual) 
         config = VadModelConfig(
             sileroVadModelConfig = SileroVadModelConfig(
                 model = ModelCatalog.VAD,
-                threshold = 0.45f,
+                threshold = 0.6f, // only clear speech starts a sentence
                 minSilenceDuration = 0.6f,
                 minSpeechDuration = 0.2f,
                 windowSize = windowSize,
